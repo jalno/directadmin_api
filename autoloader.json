@@ -1,0 +1,32 @@
+{
+	"files":[
+		{
+			"classes": ["API"],
+			"file": "API.php"
+		},
+		{
+			"classes": ["HTTPSocket"],
+			"file": "HTTPSocket.php"
+		},
+		{
+			"classes": ["Accounts"],
+			"file": "Accounts.php"
+		},
+		{
+			"classes": ["Account"],
+			"file": "Account.php"
+		},
+		{
+			"classes": ["FileManager"],
+			"file": "FileManager.php"
+		},
+		{
+			"classes": [
+				"Exception",
+				"FailedException",
+				"NotFoundAccountException"
+			],
+			"file": "Exceptions.php"
+		}
+	]
+}
