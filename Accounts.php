@@ -10,11 +10,10 @@ class Accounts {
 	}
 	public function all() {
 		$accounts = [];
-		$socket = $this->api->getSocket();
-		$socket->set_method("GET");
-		$socket->query("/CMD_API_ALL_USER_USAGE");
-		$rawBody = $socket->fetch_body();
-		$results = $socket->fetch_parsed_body();
+		$this->socket->set_method("GET");
+		$this->socket->query("/CMD_API_ALL_USER_USAGE");
+		$rawBody = $this->socket->fetch_body();
+		$results = $this->socket->fetch_parsed_body();
 		if(isset($results["error"]) and $results["error"] == 1){
 			throw new FailedException($result);
 		}
@@ -298,7 +297,6 @@ class Accounts {
 		$other->setUsername($username, $level);
 		$other->setPassword($password);
 
-		$account = $other->getAccount();
 		$localBackup = new file\tmp();
 		if ($level == API::Admin || $level == API::Reseller) {
 			$accounts = $other->getAccounts();
@@ -307,6 +305,7 @@ class Accounts {
 			$adminAccount = $other->getAccount();
 			$adminAccount->getFiles()->download($filePath, $localBackup);
 		} else {
+			$account = $other->getAccount();
 			$filePath = $account->backup();
 			$account->getFiles()->download($filePath, $localBackup);
 		}
@@ -315,5 +314,11 @@ class Accounts {
 		$this->api->getAccount()->getFiles()->upload($localPath, $localBackup);
 		$this->restore(array($localBackup->basename), $localIP);
 		return $this->byUsername($account->getUsername());
+	}
+	public function getNewAccount(string $username) {
+		try {
+			$account = Account::importByUsername($this->api, $username);
+		} catch (NotFoundAccountException $e) {}
+		return $account;
 	}
 }
