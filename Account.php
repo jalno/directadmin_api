@@ -307,7 +307,7 @@ class Account {
 			"select8" => "ftp",
 			"select9" => "ftpsettings",
 		);
-		/*$log->info("send query to create backup");
+		$log->info("send query to create backup");
 		$this->socket->set_method("POST");
 		$this->socket->query("/CMD_API_SITE_BACKUP", $params);
 		$result = $this->socket->fetch_parsed_body();
@@ -352,7 +352,6 @@ class Account {
 			sleep(2);
 		}
 		$log->info("looking in backup files for found them");
-		*/
 		$month = date::format("M");
 		$year = date::format("Y");
 		$day = date::format("j");
