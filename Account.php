@@ -94,6 +94,9 @@ class Account {
 			$exception->setResponse($usage);
 			throw $exception;
 		}
+		if ($this->username == "admin" and !isset($result["domain"])) {
+			$result["domain"] = "";
+		}
 		$this->username = $result["username"];
 		$this->domain = $result["domain"];
 		$this->maxQuota = $result["quota"] != "unlimited" ? $result["quota"] : self::unlimited;
@@ -843,9 +846,11 @@ class Account {
 			}
 			$tickets[$key] = $values;
 		}
-		usort($tickets, function($a, $b) {
-			return $b["time"] - $a["time"];
-		});
+		if ($tickets) {
+			usort($tickets, function($a, $b) {
+				return $b["time"] - $a["time"];
+			});
+		}
 		return $tickets;
 	}
 	protected function getCurrentBackups(): array {
