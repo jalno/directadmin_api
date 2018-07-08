@@ -8,10 +8,16 @@ class Account {
 	const skinDefault = "default";
 	const skinPowerUser = "power_user";
 	public static function importByUsername(API $api, string $username) {
-		$account = new static($api);
-		$account->username = $username;
+		$account = new static($api, $username);
 		$account->reload();
 		return $account;
+	}
+	public static function createUsername(string $str, int $maxlength = 8): string {
+		$str = strtolower($str);
+		$str = preg_replace("!^\d+!", "", $str);
+		$str = preg_replace("!(\W+|_)!", "", $str);
+		$str = substr($str, 0, $maxlength-3).rand(100, 999);
+		return $str;
 	}
 	protected $api;
 	protected $socket;
@@ -56,9 +62,16 @@ class Account {
 	protected $emailResponders;
 	protected $nameservers = [];
 
-	public function __construct(API $api) {
+	public function __construct(API $api, string $username, string $domain = "", string $email = "") {
 		$this->api = $api;
 		$this->socket = $api->getSocket();
+		$this->username = $username;
+		if ($domain) {
+			$this->domain = $domain;
+		}
+		if ($email) {
+			$this->email = $email;
+		}
 	}
 	public function reload() {
 		$this->socket->set_method("GET");
@@ -156,7 +169,7 @@ class Account {
 			"ssh" => $this->shell ? "ON" : "OFF",
 			"dnscontrol" => $this->dnscontrol ? "ON" : "OFF"
 		);
-		$params["username"] = $this->username ? $this->username : $this->createUsername($this->domain);
+		$params["username"] = $this->username ? $this->username : self::createUsername($this->domain);
 		$params["passwd"] = $this->password ? $this->password : utility\password::generate();
 		$params["passwd2"] = $params["passwd"];
 		$params["notify"] = $this->notify ? "yes" : "no";
@@ -168,19 +181,61 @@ class Account {
 		} else {
 			$params["ip"] = $this->ip;
 		}
-		$params["uquota"] = $this->maxQuota == self::unlimited ? "ON" : $this->maxQuota;
-		$params["bandwidth"] = $this->maxBandwidth == self::unlimited ? "ON" : $this->maxBandwidth;
-		$params["vdomains"] = $this->maxAddonDomains == self::unlimited ? "ON" : $this->maxAddonDomains;
-		$params["vdomains"] = $this->maxAddonDomains == self::unlimited ? "ON" : $this->maxAddonDomains;
-		$params["nsubdomains"] = $this->maxSubDomains == self::unlimited ? "ON" : $this->maxSubDomains;
-		$params["nemails"] = $this->maxEmails == self::unlimited ? "ON" : $this->maxEmails;
-		$params["nemailml"] = $this->maxMailingLists == self::unlimited ? "ON" : $this->maxMailingLists;
-		$params["nemailr"] = $this->maxEmailResponders == self::unlimited ? "ON" : $this->maxEmailResponders;
-		$params["unemailf"] = $this->maxEmailForwarders == self::unlimited ? "ON" : $this->maxEmailForwarders;
-		$params["mysql"] = $this->maxSqls == self::unlimited ? "ON" : $this->maxSqls;
-		$params["domainptr"] = $this->maxParkDomains == self::unlimited ? "ON" : $this->maxParkDomains;
-		$params["ftp"] = $this->maxFtps == self::unlimited ? "ON" : $this->maxFtps;
-
+		if ($this->maxQuota != self::unlimited) {
+			$params["quota"] = $this->maxQuota;
+		} else {
+			$params["uquota"] = "ON";
+		}
+		if ($this->maxBandwidth != self::unlimited) {
+			$params["bandwidth"] = $this->maxBandwidth;
+		} else {
+			$params["ubandwidth"] = "ON";
+		}
+		if ($this->maxAddonDomains != self::unlimited) {
+			$params["vdomains"] = $this->maxAddonDomains;
+		} else {
+			$params["uvdomains"] = "ON";
+		}
+		if ($this->maxSubDomains != self::unlimited) {
+			$params["nsubdomains"] = $this->maxSubDomains;
+		} else {
+			$params["unsubdomains"] = "ON";
+		}
+		if ($this->maxEmails != self::unlimited) {
+			$params["nemails"] = $this->maxEmails;
+		} else {
+			$params["unemails"] = "ON";
+		}
+		if ($this->maxMailingLists != self::unlimited) {
+			$params["nemailml"] = $this->maxMailingLists;
+		} else {
+			$params["unemailml"] = "ON";
+		}
+		if ($this->maxEmailResponders != self::unlimited) {
+			$params["nemailr"] = $this->maxEmailResponders;
+		} else {
+			$params["unemailr"] = "ON";
+		}
+		if ($this->maxEmailForwarders != self::unlimited) {
+			$params["unemailf"] = $this->maxEmailForwarders;
+		} else {
+			$params["uunemailf"] = "ON";
+		}
+		if ($this->maxSqls != self::unlimited) {
+			$params["mysql"] = $this->maxSqls;
+		} else {
+			$params["umysql"] = "ON";
+		}
+		if ($this->maxParkDomains != self::unlimited) {
+			$params["domainptr"] = $this->maxParkDomains;
+		} else {
+			$params["udomainptr"] = "ON";
+		}
+		if ($this->maxFtps != self::unlimited) {
+			$params["ftp"] = $this->maxFtps;
+		} else {
+			$params["uftp"] = "ON";
+		}
 		$this->socket->query("/" . $query, $params);
 		$result = $this->socket->fetch_parsed_body();
 		if (!$result) {
@@ -257,7 +312,7 @@ class Account {
 			$exception->setRequest($params);
 			throw $exception;
 		}
-		if(isset($result["error"]) and $result["error"]){
+		if (isset($result["error"]) and $result["error"]) {
 			$exception = new FailedException();
 			$exception->setRequest($params);
 			$exception->setResponse($result);
@@ -266,7 +321,7 @@ class Account {
 		$startAt = date::time();
 		$found = false;
 		$countTickets = count($this->getTickets());
-		while(($timeout == 0 or date::time() - $startAt < $timeout) and !$found){
+		while(($timeout == 0 or date::time() - $startAt < $timeout) and !$found) {
 			$tickets = $this->getTickets();
 			$newcountTickets = count($tickets);
 			if ($newcountTickets > $countTickets) {
@@ -329,7 +384,7 @@ class Account {
 		$log->reply($countTickets, " ticket found");
 		$found = false;
 		$log->info("listening for add new ticket in ", $timeout, " Second");
-		while(($timeout == 0 or date::time() - $startAt < $timeout) and !$found){
+		while(($timeout == 0 or date::time() - $startAt < $timeout) and !$found) {
 			$log->info("get system tickets for checking new ticket");
 			$tickets = $this->getTickets();
 			$count = count($tickets);
@@ -604,7 +659,7 @@ class Account {
 		}
 		$this->nameservers = $nameservers;
 	}
-	public function getMaxEmailForwarders(): int{
+	public function getMaxEmailForwarders() {
 		return $this->maxEmailForwarders;
 	}
 	public function setMaxEmailForwarders(int $maxEmailForwarders) {
@@ -642,12 +697,12 @@ class Account {
 		$this->socket->set_method("POST");
 		$this->socket->query("/CMD_API_CUSTOM_HTTPD",$params);
 		$result = $this->socket->fetch_parsed_body();
-		if (!$result){
+		if (!$result) {
 			$exception = new FailedException();
 			$exception->setRequest($params);
 			throw $exception;
 		}
-		if (isset($result["error"]) and $result["error"] == 1){
+		if (isset($result["error"]) and $result["error"] == 1) {
 			$exception = new FailedException();
 			$exception->setRequest($params);
 			$exception->setResponse($result);
@@ -655,32 +710,28 @@ class Account {
 		}
 		return $result;
 	}
-	public function createUsername(string $str, int $maxlength = 8): string {
-		$str = strtolower($str);
-		$str = preg_replace("!^\d+!", "", $str);
-		$str = preg_replace("!(\W+|_)!", "", $str);
-		$str = substr($str, 0, $maxlength-3).rand(100, 999);
-		return $str;
-	}
 	public function getFiles(): FileManager {
 		return new FileManager($this);
 	}
 	public function getDomain(): string {
 		return $this->domain;
 	}
-	public function getUsername(): string{
+	public function getUsername() {
 		return $this->username;
 	}
-	public function getPassword(): string{
+	public function getPassword() {
 		return $this->password;
 	}
 	public function setPassword(string $password) {
 		$this->password = $password;
 	}
-	public function getEmail(): string{
+	public function setEmail(string $email) {
+		$this->email = $email;
+	}
+	public function getEmail() {
 		return $this->email;
 	}
-	public function getMaxQuota(): int{
+	public function getMaxQuota() {
 		return $this->maxQuota;
 	}
 	public function setMaxQuota(int $maxQuota) {
@@ -689,10 +740,10 @@ class Account {
 		}
 		$this->maxQuota = $maxQuota;
 	}
-	public function getQuota(): int{
+	public function getQuota()  {
 		return $this->quota;
 	}
-	public function getMaxBandwidth(): int{
+	public function getMaxBandwidth() {
 		return $this->maxBandwidth;
 	}
 	public function setMaxBandwidth(int $maxBandwidth) {
@@ -701,10 +752,10 @@ class Account {
 		}
 		$this->maxBandwidth = $maxBandwidth;
 	}
-	public function getBandwidth(): int{
+	public function getBandwidth() {
 		return $this->bandwidth;
 	}
-	public function getMaxFtps(): int{
+	public function getMaxFtps() {
 		return $this->maxFtps;
 	}
 	public function setMaxFtps(int $maxFtps) {
@@ -713,11 +764,11 @@ class Account {
 		}
 		$this->maxFtps = $maxFtps;
 	}
-	public function getFtps(): int{
+	public function getFtps() {
 		return $this->ftps;
 	}
 
-	public function getMaxEmails(): int{
+	public function getMaxEmails() {
 		return $this->maxEmails;
 	}
 	public function setMaxEmails(int $maxEmails) {
@@ -726,10 +777,10 @@ class Account {
 		}
 		$this->maxEmails = $maxEmails;
 	}
-	public function getEmails(): int{
+	public function getEmails() {
 		return $this->emails;
 	}
-	public function getMaxMailingLists(): int{
+	public function getMaxMailingLists() {
 		return $this->maxMailingLists;
 	}
 	public function setMaxMailingLists(int $maxMailingLists) {
@@ -738,11 +789,11 @@ class Account {
 		}
 		$this->maxMailingLists = $maxMailingLists;
 	}
-	public function getMailingLists(): int{
+	public function getMailingLists() {
 		return $this->mailingLists;
 	}
 	
-	public function getMaxSqls(): int{
+	public function getMaxSqls() {
 		return $this->maxSqls;
 	}
 	public function setMaxSqls(int $maxSqls) {
@@ -751,10 +802,10 @@ class Account {
 		}
 		$this->maxSqls = $maxSqls;
 	}
-	public function getSqls(): int{
+	public function getSqls() {
 		return $this->sqls;
 	}
-	public function getMaxSubDomains(): int{
+	public function getMaxSubDomains() {
 		return $this->maxSubDomains;
 	}
 	public function setMaxSubDomains(int $maxSubDomains) {
@@ -763,10 +814,10 @@ class Account {
 		}
 		$this->maxSubDomains = $maxSubDomains;
 	}
-	public function getSubDomains(): int{
+	public function getSubDomains() {
 		return $this->subDomains;
 	}
-	public function getMaxParkDomains(): int{
+	public function getMaxParkDomains() {
 		return $this->maxParkDomains;
 	}
 	public function setMaxParkDomains(int $maxParkDomains) {
@@ -775,10 +826,10 @@ class Account {
 		}
 		$this->maxParkDomains = $maxParkDomains;
 	}
-	public function getParkDomains(): int{
+	public function getParkDomains() {
 		return $this->parkDomains;
 	}
-	public function getMaxAddonDomains(): int{
+	public function getMaxAddonDomains() {
 		return $this->maxAddonDomains;
 	}
 	public function setMaxAddonDomains(int $maxAddonDomains) {
@@ -787,7 +838,7 @@ class Account {
 		}
 		$this->maxAddonDomains = $maxAddonDomains;
 	}
-	public function getAddonDomains(): int{
+	public function getAddonDomains() {
 		return $this->addonDomains;
 	}
 
@@ -821,10 +872,10 @@ class Account {
 	public function getAPI(): API {
 		return $this->api;
 	}
-	public function setPackage(string $package){
+	public function setPackage(string $package) {
 		$this->package = $package;
 	}
-	public function getPackage(): string{
+	public function getPackage() {
 		return $this->package;
 	}
 	protected function getTickets(): array {

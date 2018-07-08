@@ -315,10 +315,7 @@ class Accounts {
 		$this->restore(array($localBackup->basename), $localIP);
 		return $this->byUsername($account->getUsername());
 	}
-	public function getNewAccount(string $username) {
-		try {
-			$account = Account::importByUsername($this->api, $username);
-		} catch (NotFoundAccountException $e) {}
-		return $account;
+	public function getNewAccount(string $username, string $domain, string $email): Account {
+		return new Account($this->api, $username, $domain, $email);
 	}
 }
