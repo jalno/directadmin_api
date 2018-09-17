@@ -467,6 +467,9 @@ class Account {
 			$this->changePassword($modifiedData["password"]);
 			unset($modifiedData["password"]);
 		}
+		if (empty($modifiedData)) {
+			return;
+		}
 		$params = array(
 			"action" => "customize",
 			"user" => $this->username
