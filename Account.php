@@ -716,6 +716,9 @@ class Account {
 	public function getFiles(): FileManager {
 		return new FileManager($this);
 	}
+	public function getDatabases(): DatabaseManager {
+		return new DatabaseManager($this);
+	}
 	public function getDomain(): string {
 		return $this->domain;
 	}

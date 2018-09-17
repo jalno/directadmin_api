@@ -21,6 +21,10 @@
 			"file": "FileManager.php"
 		},
 		{
+			"classes": ["DatabaseManager"],
+			"file": "DatabaseManager.php"
+		},
+		{
 			"classes": [
 				"Exception",
 				"FailedException",
