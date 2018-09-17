@@ -460,9 +460,13 @@ class Account {
 		}
 	}
 	public function modify(array $modifiedData) {
+		$log = log::getInstance();
+		$log->info("modifing user", $this->username);
 		if (empty($modifiedData)) {
+			$log->reply()->fatal("modify data is empty");
 			throw new Exception("modify data is empty");
 		}
+		$log->reply("modify data is", $modifiedData);
 		if (isset($modifiedData["password"])) {
 			$this->changePassword($modifiedData["password"]);
 			unset($modifiedData["password"]);
@@ -474,34 +478,171 @@ class Account {
 			"action" => "customize",
 			"user" => $this->username
 		);
-		foreach ($modifiedData as $key => $value) {
-			if ($key == "maxQuota") {
-				$params["quota"] = $value == self::unlimited ? "ON" : $value;
-			} else if ($key == "maxBandwidth") {
-				$params["bandwidth"] = $value == self::unlimited ? "ON" : $value;
-			} else if ($key == "maxAddonDomains") {
-				$params["vdomains"] = $value == self::unlimited ? "ON" : $value;
-			} else if ($key == "maxParkDomains") {
-				$params["domainptr"] = $value == self::unlimited ? "ON" : $value;
-			} else if ($key == "maxSubDomains") {
-				$params["nsubdomains"] = $value == self::unlimited ? "ON" : $value;
-			} else if ($key == "maxEmails") {
-				$params["nemails"] = $value == self::unlimited ? "ON" : $value;
-			} else if ($key == "maxEmailForwarders") {
-				$params["nemailf"] = $value == self::unlimited ? "ON" : $value;
-			} else if ($key == "maxEmailResponders") {
-				$params["nemailr"] = $value == self::unlimited ? "ON" : $value;
-			} else if ($key == "maxMailingLists") {
-				$params["nemailml"] = $value == self::unlimited ? "ON" : $value;
-			} else if ($key == "maxSqls") {
-				$params["mysql"] = $value == self::unlimited ? "ON" : $value;
-			} else if ($key == "shell") {
-				$params["ssh"] = $value ? "ON" : "OFF";
-			} else if ($key == "anonymousFtp") {
-				$params["aftp"] = $value ? "ON" : "OFF";
-			} else if (in_array($key, ["cgi", "php", "spam", "cron", "ssl", "sysinfo", "dnscontrol"])) {
-				$params[$key] = $value ? "ON" : "OFF";
+		if (isset($modifiedData["maxQuota"])) {
+			if ($modifiedData["maxQuota"] == self::unlimited) {
+				$params["uquota"] = "ON";
+			} else {
+				$params["quota"] = $modifiedData["maxQuota"];
 			}
+		} else if ($this->maxQuota != self::unlimited) {
+			$params["quota"] = $this->maxQuota;
+		} else {
+			$params["uquota"] = "ON";
+		}
+		if (isset($modifiedData["maxBandwidth"])) {
+			if ($modifiedData["maxBandwidth"] == self::unlimited) {
+				$params["ubandwidth"] = "ON";
+			} else {
+				$params["bandwidth"] = $modifiedData["maxBandwidth"];
+			}
+		} else if ($this->maxBandwidth != self::unlimited) {
+			$params["bandwidth"] = $this->maxBandwidth;
+		} else {
+			$params["ubandwidth"] = "ON";
+		}
+		if (isset($modifiedData["maxAddonDomains"])) {
+			if ($modifiedData["maxAddonDomains"] == self::unlimited) {
+				$params["uvdomains"] = "ON";
+			} else {
+				$params["vdomains"] = $modifiedData["maxAddonDomains"];
+			}
+		} else if ($this->maxAddonDomains != self::unlimited) {
+			$params["vdomains"] = $this->maxAddonDomains;
+		} else {
+			$params["uvdomains"] = "ON";
+		}
+		if (isset($modifiedData["maxParkDomains"])) {
+			if ($modifiedData["maxParkDomains"] == self::unlimited) {
+				$params["udomainptr"] = "ON";
+			} else {
+				$params["domainptr"] = $modifiedData["maxParkDomains"];
+			}
+		} else if ($this->maxParkDomains != self::unlimited) {
+			$params["domainptr"] = $this->maxParkDomains;
+		} else {
+			$params["udomainptr"] = "ON";
+		}
+		if (isset($modifiedData["maxSubDomains"])) {
+			if ($modifiedData["maxSubDomains"] == self::unlimited) {
+				$params["unsubdomains"] = "ON";
+			} else {
+				$params["nsubdomains"] =  $modifiedData["maxSubDomains"];
+			}
+		} else if ($this->maxSubDomains != self::unlimited) {
+			$params["nsubdomains"] = $this->maxSubDomains;
+		} else {
+			$params["unsubdomains"] = "ON";
+		}
+		if (isset($modifiedData["maxEmails"])) {
+			if ($modifiedData["maxEmails"] == self::unlimited) {
+				$params["unemails"] = "ON";
+			} else {
+				$params["nemails"] = $modifiedData["maxEmails"];
+			}
+		} else if ($this->maxEmails != self::unlimited) {
+			$params["nemails"] = $this->maxEmails;
+		} else {
+			$params["unemails"] = "ON";
+		}
+		if (isset($modifiedData["maxEmailForwarders"])) {
+			if ($modifiedData["maxEmailForwarders"] == self::unlimited) {
+				$params["uunemailf"] = "ON";
+			} else {
+				$params["nemailf"] = $modifiedData["maxEmailForwarders"];
+			}
+		} else if ($this->maxEmailForwarders != self::unlimited) {
+			$params["unemailf"] = $this->maxEmailForwarders;
+		} else {
+			$params["uunemailf"] = "ON";
+		}
+		if (isset($modifiedData["maxEmailResponders"])) {
+			if ($modifiedData["maxEmailResponders"] == self::unlimited) {
+				$params["unemailr"] = "ON";
+			} else {
+				$params["nemailr"] = $modifiedData["maxEmailResponders"];
+			}
+		} else if ($this->maxEmailResponders != self::unlimited) {
+			$params["nemailr"] = $this->maxEmailResponders;
+		} else {
+			$params["unemailr"] = "ON";
+		}
+		if (isset($modifiedData["maxMailingLists"])) {
+			if ($modifiedData["maxMailingLists"] == self::unlimited) {
+				$params["unemailml"] = "ON";
+			} else {
+				$params["nemailml"] = $modifiedData["maxMailingLists"];
+			}
+		} else if ($this->maxMailingLists != self::unlimited) {
+			$params["nemailml"] = $this->maxMailingLists;
+		} else {
+			$params["unemailml"] = "ON";
+		}
+		if (isset($modifiedData["maxSqls"])) {
+			if ($modifiedData["maxSqls"] == self::unlimited) {
+				$params["umysql"] = "ON";
+			} else {
+				$params["mysql"] = $modifiedData["maxSqls"];
+			}
+		} else if ($this->maxSqls != self::unlimited) {
+			$params["mysql"] = $this->maxSqls;
+		} else {
+			$params["umysql"] = "ON";
+		}
+		if (isset($modifiedData["maxFtps"])) {
+			if ($modifiedData["maxFtps"] == self::unlimited) {
+				$params["uftp"] = "ON";
+			} else {
+				$params["ftp"] = $modifiedData["maxFtps"];
+			}
+		} else if ($this->maxFtps != self::unlimited) {
+			$params["ftp"] = $this->maxFtps;
+		} else {
+			$params["uftp"] = "ON";
+		}
+		if (isset($modifiedData["shell"])) {
+			$params["ssh"] = $modifiedData["shell"] ? "ON" : "OFF";
+		} else {
+			$params["ssh"] = $this->shell ? "ON" : "OFF";
+		}
+		if (isset($modifiedData["anonymousFtp"])) {
+			$params["aftp"] = $modifiedData["anonymousFtp"] ? "ON" : "OFF";
+		} else {
+			$params["aftp"] = $this->anonymousFtp ? "ON" : "OFF";
+		}
+		if (isset($modifiedData["cgi"])) {
+			$params["cgi"] = $modifiedData["cgi"] ? "ON" : "OFF";
+		} else {
+			$params["cgi"] = $this->cgi ? "ON" : "OFF";
+		}
+		if (isset($modifiedData["php"])) {
+			$params["php"] = $modifiedData["php"] ? "ON" : "OFF";
+		} else {
+			$params["php"] = $this->php ? "ON" : "OFF";
+		}
+		if (isset($modifiedData["spam"])) {
+			$params["spam"] = $modifiedData["spam"] ? "ON" : "OFF";
+		} else {
+			$params["spam"] = $this->spam ? "ON" : "OFF";
+		}
+		if (isset($modifiedData["cron"])) {
+			$params["cron"] = $modifiedData["cron"] ? "ON" : "OFF";
+		} else {
+			$params["cron"] = $this->cron ? "ON" : "OFF";
+		}
+		if (isset($modifiedData["ssl"])) {
+			$params["ssl"] = $modifiedData["ssl"] ? "ON" : "OFF";
+		} else {
+			$params["ssl"] = $this->ssl ? "ON" : "OFF";
+		}
+		if (isset($modifiedData["sysinfo"])) {
+			$params["sysinfo"] = $modifiedData["sysinfo"] ? "ON" : "OFF";
+		} else {
+			$params["sysinfo"] = $this->sysinfo ? "ON" : "OFF";
+		}
+		if (isset($modifiedData["dnscontrol"])) {
+			$params["dnscontrol"] = $modifiedData["dnscontrol"] ? "ON" : "OFF";
+		} else {
+			$params["dnscontrol"] = $this->dnscontrol ? "ON" : "OFF";
 		}
 		$this->socket->set_method("POST");
 		$this->socket->query("/CMD_API_MODIFY_USER", $params);
