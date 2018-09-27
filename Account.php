@@ -61,6 +61,7 @@ class Account {
 	protected $maxEmailResponders = self::unlimited;
 	protected $emailResponders;
 	protected $nameservers = [];
+	protected $parent;
 
 	public function __construct(API $api, string $username, string $domain = "", string $email = "") {
 		$this->api = $api;
@@ -147,6 +148,9 @@ class Account {
 		$this->addonDomains = intval($usage["vdomains"]);
 		$this->emailForwarders = intval($usage["nemailf"]);
 		$this->emailResponders = intval($usage["nemailr"]);
+		if (isset($result["creator"]) and $result["creator"] != "root") {
+			$this->parent = self::importByUsername($this->api, $result["creator"]);
+		}
 	}
 	public function create() {
 		if ($this->reseller) {
@@ -1024,6 +1028,12 @@ class Account {
 	}
 	public function getPackage() {
 		return $this->package;
+	}
+	public function setParent(Account $parent) {
+		$this->parent = $parent;
+	}
+	public function getParent() {
+		return $this->parent;
 	}
 	protected function getTickets(): array {
 		$this->socket->set_method("GET");
