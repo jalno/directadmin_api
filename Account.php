@@ -148,7 +148,7 @@ class Account {
 		$this->addonDomains = intval($usage["vdomains"]);
 		$this->emailForwarders = intval($usage["nemailf"]);
 		$this->emailResponders = intval($usage["nemailr"]);
-		if (isset($result["creator"]) and $result["creator"] != "root") {
+		if (isset($result["creator"]) and ($result["creator"] != "root" and $result["creator"] != "admin")) {
 			$this->parent = self::importByUsername($this->api, $result["creator"]);
 		}
 	}
