@@ -62,6 +62,7 @@ class Account {
 	protected $emailResponders;
 	protected $nameservers = [];
 	protected $parent;
+	protected $databaseManager;
 
 	public function __construct(API $api, string $username, string $domain = "", string $email = "") {
 		$this->api = $api;
@@ -864,7 +865,7 @@ class Account {
 	public function getDatabases(): DatabaseManager {
 		return new DatabaseManager($this);
 	}
-	public function getDomain(): string {
+	public function getDomain() {
 		return $this->domain;
 	}
 	public function getUsername() {
@@ -891,7 +892,10 @@ class Account {
 		}
 		$this->maxQuota = $maxQuota;
 	}
-	public function getQuota()  {
+	public function setQuato(int $quota) {
+		$this->quota = $quota;
+	}
+	public function getQuota() {
 		return $this->quota;
 	}
 	public function getMaxBandwidth() {
@@ -902,6 +906,9 @@ class Account {
 			throw new Exception;
 		}
 		$this->maxBandwidth = $maxBandwidth;
+	}
+	public function setBandwidth(int $bandwidth) {
+		$this->bandwidth = $bandwidth;
 	}
 	public function getBandwidth() {
 		return $this->bandwidth;
@@ -927,6 +934,9 @@ class Account {
 			throw new Exception("max emails get positive number");
 		}
 		$this->maxEmails = $maxEmails;
+	}
+	public function setEmails(int $emails) {
+		$this->emails = $emails;
 	}
 	public function getEmails() {
 		return $this->emails;
@@ -989,10 +999,12 @@ class Account {
 		}
 		$this->maxAddonDomains = $maxAddonDomains;
 	}
+	public function setAddonDomains(int $addonDomains) {
+		$this->addonDomains = $addonDomains;
+	}
 	public function getAddonDomains() {
 		return $this->addonDomains;
 	}
-
 	public function getPHP():bool{
 		return $this->php;
 	}
@@ -1034,6 +1046,12 @@ class Account {
 	}
 	public function getParent() {
 		return $this->parent;
+	}
+	public function getDatabaseManager(): DatabaseManager {
+		if (!$this->databaseManager) {
+			$this->databaseManager = new DatabaseManager($this);
+		}
+		return $this->databaseManager;
 	}
 	protected function getTickets(): array {
 		$this->socket->set_method("GET");
