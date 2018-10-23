@@ -25,13 +25,63 @@ class Accounts {
 		}
 		return $accounts;
 	}
+	public function summeryList() {
+		$accounts = [];
+		$this->socket->set_method("GET");
+		$this->socket->query("/CMD_API_ALL_USER_USAGE");
+		$rawBody = $this->socket->fetch_body();
+		if (stripos($rawBody, "error") !== false) {
+			$results = $this->socket->fetch_parsed_body();
+			if(isset($results["error"]) and $results["error"] == 1){
+				throw new FailedException($result);
+			}
+		}
+		$lines = explode("\n", $rawBody);
+		foreach ($lines as $line) {
+			if ($username = strtok($line, "=")) {
+				$result = null;
+				parse_str(substr($line, strlen($username) + 1), $result);
+				if (!isset($result["default"]) or $result["default"] == "") {
+					continue;
+				}
+				$account = new Account($this->api, $username, $result["default"]);
+				list($quota, $maxQuota) = explode("/", $result["quota"], 2);
+				$quota = trim($quota);
+				$maxQuota = trim($maxQuota);
+				$account->setMaxQuota($maxQuota == "unlimited" ? Account::unlimited : $maxQuota);
+				$account->setQuato($quota);
+				if (isset($result["package"])) {
+					$account->setPackage($result["package"]);
+				}
+				list($bandwidth, $maxBandwidth) = explode("/", $result["bandwidth"], 2);
+				$bandwidth = trim($bandwidth);
+				$maxBandwidth = trim($maxBandwidth);
+				$account->setMaxBandwidth($maxBandwidth == "unlimited" ? Account::unlimited : $maxBandwidth);
+				$account->setBandwidth(intval($bandwidth));
+				$account->setSuspended($result["suspended"] != "No");
+				list($addonDomains, $maxAddonDomains) = explode("/", $result["vdomains"], 2);
+				$addonDomains = trim($addonDomains);
+				$maxAddonDomains = trim($maxAddonDomains);
+				$account->setMaxAddonDomains($maxAddonDomains == "unlimited" ? Account::unlimited : $maxAddonDomains);
+				$account->setAddonDomains($addonDomains);
+				$account->setEmails($result["email_deliveries_outgoing"]);
+				if (isset($result["email_daily_limit"])) {
+					$account->setMaxEmails($result["email_daily_limit"] == "unlimited" ? Account::unlimited : $result["email_daily_limit"]);
+				}
+				$accounts[] = $account;
+			}
+		}
+		return $accounts;
+	}
 	public function byUsername(string $username) {
 		$this->socket->set_method("GET");
 		$this->socket->query("/CMD_API_ALL_USER_USAGE");
 		$rawBody = $this->socket->fetch_body();
-		$results = $this->socket->fetch_parsed_body();
-		if(isset($results["error"]) and $results["error"] == 1){
-			throw new FailedException($result);
+		if (stripos($rawBody, "error") !== false) {
+			$results = $this->socket->fetch_parsed_body();
+			if(isset($results["error"]) and $results["error"] == 1){
+				throw new FailedException($result);
+			}
 		}
 		$lines = explode("\n", $rawBody);
 		foreach ($lines as $line) {
@@ -45,9 +95,11 @@ class Accounts {
 		$this->socket->set_method("GET");
 		$this->socket->query("/CMD_API_ALL_USER_USAGE");
 		$rawBody = $this->socket->fetch_body();
-		$results = $this->socket->fetch_parsed_body();
-		if(isset($results["error"]) and $results["error"] == 1){
-			throw new FailedException($result);
+		if (stripos($rawBody, "error") !== false) {
+			$results = $this->socket->fetch_parsed_body();
+			if(isset($results["error"]) and $results["error"] == 1){
+				throw new FailedException($result);
+			}
 		}
 		$lines = explode("\n", $rawBody);
 		foreach ($lines as $line) {
