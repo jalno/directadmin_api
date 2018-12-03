@@ -25,6 +25,14 @@
 			"file": "DatabaseManager.php"
 		},
 		{
+			"classes": ["DomainManager"],
+			"file": "DomainManager.php"
+		},
+		{
+			"classes": ["AccountDomain"],
+			"file": "AccountDomain.php"
+		},
+		{
 			"classes": [
 				"Exception",
 				"FailedException",

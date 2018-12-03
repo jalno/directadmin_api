@@ -63,6 +63,10 @@ class Account {
 	protected $nameservers = [];
 	protected $parent;
 	protected $databaseManager;
+	/**
+	 * @var DomainManager holds object created by getDomainManager
+	 */
+	protected $domainManager;
 
 	public function __construct(API $api, string $username, string $domain = "", string $email = "") {
 		$this->api = $api;
@@ -1052,6 +1056,12 @@ class Account {
 			$this->databaseManager = new DatabaseManager($this);
 		}
 		return $this->databaseManager;
+	}
+	public function getDomainManager(): DomainManager {
+		if (!$this->domainManager) {
+			$this->domainManager = new DomainManager($this);
+		}
+		return $this->domainManager;
 	}
 	protected function getTickets(): array {
 		$this->socket->set_method("GET");
