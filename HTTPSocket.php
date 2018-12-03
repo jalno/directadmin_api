@@ -61,6 +61,8 @@ class HTTPSocket {
 	var $ssl_setting_message = 'DirectAdmin appears to be using SSL. Change your script to connect to ssl://';
 
 	var $extra_headers = array();
+	var $timeout = 10;
+	
 
 	/**
 	 * Create server "connection".
@@ -207,12 +209,14 @@ class HTTPSocket {
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER,1);
 		curl_setopt($ch, CURLOPT_USERAGENT, "HTTPSocket/$this->version");
 		curl_setopt($ch, CURLOPT_FORBID_REUSE, 1);
-		curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+		if ($this->timeout > 0) {
+			curl_setopt($ch, CURLOPT_TIMEOUT, $this->timeout);
+			curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $this->timeout);
+			curl_setopt($ch, CURLOPT_LOW_SPEED_LIMIT, 51200);
+			curl_setopt($ch, CURLOPT_LOW_SPEED_TIME, $this->timeout / 2);
+		}
 		curl_setopt($ch, CURLOPT_HEADER, 1);
 
-		curl_setopt($ch, CURLOPT_LOW_SPEED_LIMIT, 51200);
-		curl_setopt($ch, CURLOPT_LOW_SPEED_TIME, 5);
 
 		//if ($this->doFollowLocationHeader)
 		//{
