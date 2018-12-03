@@ -37,7 +37,6 @@ class DomainManager {
 			throw $FailedException;
 		}
 		$domains = [];
-		var_dump($rawBody);
 		$lines = explode("\n", $rawBody);
 		foreach ($lines as $line) {
 			if ($domain = strtok($line, "=")) {
@@ -56,7 +55,6 @@ class DomainManager {
 				$domains[] = $obj;
 			}
 		}
-		print_R($domains);
 		return $domains;
 	}
 	public function byDomain(string $domain) {
