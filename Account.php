@@ -1063,6 +1063,42 @@ class Account {
 		}
 		return $this->domainManager;
 	}
+	/**
+	 * @param string $domain
+	 * @param string $certificates should contain public key and private key, and CA if there is any.
+	 */
+	public function setupSSL(string $domain, string $certificates) {
+		$username = $this->api->getUsername();
+		$impersonate = $username != $this->username;
+		if ($impersonate) {
+			$level = $this->api->getLevel();
+			$this->api->setUsername($this->username, API::User, true);
+		}
+
+		$socket = $this->api->getSocket();
+		$params = array(
+			'action' => 'save',
+			'background' => 'auto',
+			'certificate' => $certificates,
+			'domain' => $this->domain,
+			'submit' => 'Save',
+			'type' => 'paste',
+		);
+		$socket->set_method("POST");
+		$socket->query("/CMD_API_SSL", $params);
+		$result = $socket->fetch_parsed_body();
+
+		if ($impersonate) {
+			$this->api->setUsername($username, $level, false);
+		}
+
+		if ((isset($result["error"]) and $result["error"])) {
+			$FailedException = new FailedException();
+			$FailedException->setRequest($params);
+			$FailedException->setResponse($result);
+			throw $FailedException;
+		}
+	}
 	protected function getTickets(): array {
 		$this->socket->set_method("GET");
 		$this->socket->query("/CMD_API_TICKET");
