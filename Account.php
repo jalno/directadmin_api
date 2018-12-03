@@ -863,6 +863,21 @@ class Account {
 		}
 		return $result;
 	}
+	public function getCustomHTTP(string $domain) {
+		$params = array(
+			"domain" => $domain,
+		);
+		$this->socket->set_method("GET");
+		$this->socket->query("/CMD_API_CUSTOM_HTTPD",$params);
+		$rawBody = $this->socket->fetch_body();
+		if (stripos($rawBody, "error") !== false) {
+			$results = $this->socket->fetch_parsed_body();
+			if(isset($results["error"]) and $results["error"] == 1){
+				throw new FailedException($result);
+			}
+		}
+		return $rawBody;
+	}
 	public function getFiles(): FileManager {
 		return new FileManager($this);
 	}
