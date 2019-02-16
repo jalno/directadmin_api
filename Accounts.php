@@ -231,6 +231,7 @@ class Accounts {
 				$file->username = $location["username"];
 				$file->password = $location["password"];
 				$files = $file->getDirectory()->files();
+				$found = false;
 				foreach ($files as $f) {
 					foreach ($users as $user) {
 						if (isset($result[$user])) {
@@ -239,9 +240,13 @@ class Accounts {
 						if (preg_match("/^(?:user|reseller|admin)\.(?:\w+)\.(\w+)\.tar\.gz$/", $f->basename, $matches)) {
 							if ($matches[1] == $user) {
 								$result[$user] = $f;
+								$found = true;
 							}
 						}
 					}
+				}
+				if (!$found) {
+					$file->getDriver()->close();
 				}
 			}
 			sleep(1);
