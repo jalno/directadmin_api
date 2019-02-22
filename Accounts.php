@@ -152,7 +152,13 @@ class Accounts {
 		}
 		return $files;
 	}
-	public function backup(array $users, int $timeout = 1200, array $location = array()) {
+	/**
+	 * @param string[] $users
+	 * @param int $timeout
+	 * @param array|null $location "where"(string = ftp), "hostname"(string), "username"(string), "password"(string), "port"(int), "directory"(string), "secure" (ftps|ftp)
+	 * @param string[]|null $what "domain", "subdomain", "ftp", "ftpsettings", "database", "database_data", "email", "email_data", "emailsettings", "vacation", "autoresponder", "list", "forwarder"
+	 */
+	public function backup(array $users, int $timeout = 1200, ?array $location = array(), ?array $what = []) {
 		$files = $this->backups();
 		$userBackups = [];
 		$result = [];
@@ -185,6 +191,14 @@ class Accounts {
 		} else {
 			$params["where"] = "local";
 			$params["local_path"] = "/home/admin/admin_backups";
+		}
+		if ($what) {
+			$params['what'] = "select";
+			foreach($what as $x => $option) {
+				$params['option' . $x] = $option;
+			}
+		} else {
+			$params['what'] = "all";
 		}
 		foreach ($users as $key => $user) {
 			$params["select" . $key] = $user;
