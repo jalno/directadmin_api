@@ -386,6 +386,39 @@ class Accounts {
 		$this->restore(array($localBackup->basename), $localIP);
 		return $this->byUsername($account->getUsername());
 	}
+	/**
+	 * Delete multiple accounts.
+	 * 
+	 * @param string[] $users
+	 * @return void
+	 */
+	public function delete(array $users): void {
+		if (empty($users)) {
+			return;
+		}
+		$this->socket->set_method("POST");
+		$params = array(
+			"confirmed" => "Confirm",
+			"delete" => "yes",
+		);
+		foreach ($users as $x => $user) {
+			$params['select' . $x] = $user;
+		}
+		$this->socket->query("/CMD_API_SELECT_USERS", $params);
+		$result = $this->socket->fetch_parsed_body();
+		if (!$result) {
+			$exception = new FailedException();
+			$exception->setRequest($params);
+			$exception->setResponse($result);
+			throw $exception;
+		}
+		if (isset($result["error"]) and $result["error"] == 1) {
+			$exception = new FailedException();
+			$exception->setRequest($params);
+			$exception->setResponse($result);
+			throw $exception;
+		}
+	}
 	public function getNewAccount(string $username, string $domain, string $email): Account {
 		return new Account($this->api, $username, $domain, $email);
 	}
