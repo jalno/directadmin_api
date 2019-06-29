@@ -63,6 +63,10 @@ class Account {
 	protected $nameservers = [];
 	protected $parent;
 	protected $databaseManager;
+	
+	/** @var int|null unix timestamp */
+	protected $create_at;
+
 	/**
 	 * @var DomainManager holds object created by getDomainManager
 	 */
@@ -155,6 +159,9 @@ class Account {
 		$this->emailResponders = intval($usage["nemailr"]);
 		if (isset($result["creator"]) and ($result["creator"] != "root" and $result["creator"] != "admin")) {
 			$this->parent = self::importByUsername($this->api, $result["creator"]);
+		}
+		if (isset($result['date_created'])) {
+			$this->create_at = strtotime($result['date_created']);
 		}
 	}
 	public function create() {
@@ -1114,6 +1121,15 @@ class Account {
 			throw $FailedException;
 		}
 	}
+	/**
+	 * Get create date
+	 * 
+	 * @return int|null
+	 */
+	public function getCreateAt(): ?int {
+		return $this->create_at;
+	}
+	
 	protected function getTickets(): array {
 		$this->socket->set_method("GET");
 		$this->socket->query("/CMD_API_TICKET");
