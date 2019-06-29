@@ -21,6 +21,10 @@
 			"file": "FileManager.php"
 		},
 		{
+			"classes": ["DNSManager"],
+			"file": "DNSManager.php"
+		},
+		{
 			"classes": ["DatabaseManager"],
 			"file": "DatabaseManager.php"
 		},

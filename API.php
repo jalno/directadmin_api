@@ -70,5 +70,9 @@ class API {
 	public function getPassword() {
 		return $this->password;
 	}
+
+	public function getDNS(): DNSManager {
+		return new DNSManager($this);
+	}
 }
 	
