@@ -884,6 +884,9 @@ class Account {
 	public function getDatabases(): DatabaseManager {
 		return new DatabaseManager($this);
 	}
+	public function getDNS(): DNSManager {
+		return new DNSManager($this);
+	}
 	public function getDomain() {
 		return $this->domain;
 	}
