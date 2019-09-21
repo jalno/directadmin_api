@@ -37,6 +37,10 @@
 			"file": "AccountDomain.php"
 		},
 		{
+			"classes": ["BackupManager"],
+			"file": "BackupManager.php"
+		},
+		{
 			"classes": [
 				"Exception",
 				"FailedException",
