@@ -13,9 +13,14 @@ class Account {
 		return $account;
 	}
 	public static function createUsername(string $str, int $maxlength = 8): string {
-		$str = strtolower($str);
-		$str = preg_replace("!^\d+!", "", $str);
-		$str = preg_replace("!(\W+|_)!", "", $str);
+		$str = $newStr = strtolower($str);
+		$continue = true;
+		do {
+			$newStr = preg_replace("!^\d+!", "", $newStr);
+			$newStr = preg_replace("!(\W+|_)!", "", $newStr);
+			$continue = $newStr != $str;
+			$str = $newStr;
+		} while($continue);
 		$str = substr($str, 0, $maxlength-3).rand(100, 999);
 		return $str;
 	}
