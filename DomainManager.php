@@ -82,6 +82,5 @@ class DomainManager {
 			$exception->setResponse($result);
 			throw $exception;
 		}
-		$this->account->reload();
 	}
 }
