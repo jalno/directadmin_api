@@ -1,6 +1,6 @@
 <?php
 namespace packages\directadmin_api;
-use packages\base\{IO, IO\file, log, http, http\clientException, http\serverException};
+use packages\base\{IO, IO\file, Log, http, http\clientException, http\serverException};
 
 class DomainManager {
 	protected $api;
@@ -64,5 +64,24 @@ class DomainManager {
 			}
 		}
 		return null;
+	}
+	public function changeDomain(string $newDomain): void {
+		$log = Log::getInstance();
+		$log->info("change Domain, old domain:", $this->account->getDomain(), "new domain:", $newDomain);
+		$params = array(
+			"old_domain" => $this->account->getDomain(),
+			"new_domain" => $newDomain,
+		);
+		$socket = $this->api->getSocket();
+		$socket->set_method("POST");
+		$socket->query("/CMD_API_CHANGE_DOMAIN", $params);
+		$result = $socket->fetch_parsed_body();
+		if (isset($result["error"]) and $result["error"] == 1) {
+			$exception = new FailedException();
+			$exception->setRequest($params);
+			$exception->setResponse($result);
+			throw $exception;
+		}
+		$this->account->reload();
 	}
 }
