@@ -7,6 +7,7 @@ class Account {
 	const skinEnhanced = "enhanced";
 	const skinDefault = "default";
 	const skinPowerUser = "power_user";
+	const skinEvolution = "evolution";
 	public static function importByUsername(API $api, string $username) {
 		$account = new static($api, $username);
 		$account->reload();
@@ -805,8 +806,8 @@ class Account {
 	}
 	public function setSkin(string $skin) {
 		$skin = strtolower($skin);
-		if (!in_array($skin, [self::skinEnhanced, self::skinDefault, self::skinPowerUser])) {
-			throw new Exception("valid skins is: " . self::skinEnhanced . " , ". self::skinDefault . " and " . self::skinPowerUser);
+		if (!in_array($skin, [self::skinEnhanced, self::skinDefault, self::skinPowerUser, self::skinEvolution])) {
+			throw new Exception("valid skins is: " . self::skinEnhanced . " , ". self::skinDefault . " , " . self::skinPowerUser . " and " . self::skinEvolution);
 		}
 		$this->skin = $skin;
 	}
