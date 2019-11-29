@@ -1,5 +1,8 @@
 <?php
 namespace packages\directadmin_api;
+
+use packages\base\json;
+
 /**
  * Socket communication class.
  *
@@ -62,6 +65,8 @@ class HTTPSocket {
 
 	var $extra_headers = array();
 	var $timeout = 10;
+
+	var $isJson = false;
 	
 
 	/**
@@ -212,8 +217,8 @@ class HTTPSocket {
 		if ($this->timeout > 0) {
 			curl_setopt($ch, CURLOPT_TIMEOUT, $this->timeout);
 			curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $this->timeout);
-			curl_setopt($ch, CURLOPT_LOW_SPEED_LIMIT, 51200);
-			curl_setopt($ch, CURLOPT_LOW_SPEED_TIME, $this->timeout / 2);
+			// curl_setopt($ch, CURLOPT_LOW_SPEED_LIMIT, 51200);
+			// curl_setopt($ch, CURLOPT_LOW_SPEED_TIME, $this->timeout / 2);
 		}
 		curl_setopt($ch, CURLOPT_HEADER, 1);
 
@@ -273,6 +278,8 @@ class HTTPSocket {
 		$this->query_cache[] = $this->remote_host.':'.$this->remote_port.$request;
 
 		$headers = $this->fetch_header();
+
+		$this->isJson = (isset($headers['content-type']) and stripos($headers['content-type'], 'json') !== false);
 
 		// did we get the full file?
 		if ( !empty($headers['content-length']) && $headers['content-length'] != strlen($this->result_body) )
@@ -417,6 +424,9 @@ class HTTPSocket {
 	 */
 	function fetch_parsed_body()
 	{
+		if ($this->isJson) {
+			return json\decode($this->result_body);
+		}
 		parse_str($this->result_body,$x);
 		return $x;
 	}

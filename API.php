@@ -74,5 +74,8 @@ class API {
 	public function getDNS(): DNSManager {
 		return new DNSManager($this);
 	}
+	public function getBackupManager(): BackupManager {
+		return new BackupManager($this);
+	}
 }
 	
