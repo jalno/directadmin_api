@@ -27,3 +27,5 @@ class NotFoundAccountException extends FailedException {
 		return $this->username;
 	}
 }
+class EmailAlreadyExistException extends FailedException {}
+class EmailNotExistException extends FailedException {}

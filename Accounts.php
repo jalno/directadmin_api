@@ -33,7 +33,7 @@ class Accounts {
 		if (stripos($rawBody, "error") !== false) {
 			$results = $this->socket->fetch_parsed_body();
 			if(isset($results["error"]) and $results["error"] == 1){
-				throw new FailedException($result);
+				throw new FailedException($results);
 			}
 		}
 		$lines = explode("\n", $rawBody);
