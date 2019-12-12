@@ -38,7 +38,7 @@ class EmailManager {
 
 	public function createEmail(array $data): array {
 		if (!isset($data["username"]) or !$data["username"]) {
-			throw new Exception("give 'username' index to create new email account");
+			throw new Exception("'username' is required to create new email account");
 		}
 		if (!isset($data["password"])) {
 			$data["password"] = Password::generate();
