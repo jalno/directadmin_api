@@ -79,7 +79,7 @@ class Account {
 	protected $domainManager;
 
 	/**
-	 * @var EmailManager holds object created by getDomainManager
+	 * @var EmailManager holds object created by getEmailManager
 	 */
 	protected $emailManager;
 
