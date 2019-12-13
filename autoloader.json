@@ -33,6 +33,10 @@
 			"file": "DomainManager.php"
 		},
 		{
+			"classes": ["EmailManager"],
+			"file": "EmailManager.php"
+		},
+		{
 			"classes": ["AccountDomain"],
 			"file": "AccountDomain.php"
 		},
@@ -44,6 +48,8 @@
 			"classes": [
 				"Exception",
 				"FailedException",
+				"EmailNotExistException",
+				"EmailAlreadyExistException",
 				"NotFoundAccountException"
 			],
 			"file": "Exceptions.php"

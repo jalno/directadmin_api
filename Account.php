@@ -78,6 +78,11 @@ class Account {
 	 */
 	protected $domainManager;
 
+	/**
+	 * @var EmailManager holds object created by getEmailManager
+	 */
+	protected $emailManager;
+
 	public function __construct(API $api, string $username, string $domain = "", string $email = "") {
 		$this->api = $api;
 		$this->socket = $api->getSocket();
@@ -1093,6 +1098,12 @@ class Account {
 			$this->domainManager = new DomainManager($this);
 		}
 		return $this->domainManager;
+	}
+	public function getEmailManager(): EmailManager {
+		if (!$this->emailManager) {
+			$this->emailManager = new EmailManager($this);
+		}
+		return $this->emailManager;
 	}
 	/**
 	 * @param string $domain
