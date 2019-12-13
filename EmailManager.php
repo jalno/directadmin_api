@@ -17,12 +17,13 @@ class EmailManager {
 		$this->api = $this->account->getAPI();
 	}
 
-	public function getEmails() {
+	public function getEmails(string $inputDomain = "") {
 		$socket = $this->api->getSocket();
 		$socket->set_method("GET");
+		$domain = ($inputDomain) ? $inputDomain : $this->account->getDomain();
 		$params = array(
 			"action" => "list",
-			"domain" => $this->account->getDomain(),
+			"domain" => $domain,
 		);
 		$socket->query("/CMD_API_POP", $params);
 		$result = $socket->fetch_parsed_body();
@@ -32,7 +33,7 @@ class EmailManager {
 			$exception->setResponse($result);
 			throw $exception;
 		}
-		$result["domain"] = $this->account->getDomain();
+		$result["domain"] = $domain;
 		return $result;
 	}
 
@@ -50,11 +51,12 @@ class EmailManager {
 		}
 		$data["quota"] = (isset($data["quota"])) ? $data["quota"] : 50;
 		$data["limit"] = (isset($data["limit"])) ? $data["limit"] : 200;
+		$domain = (isset($data["domain"]) and $data["domain"]) ? $data["domain"] : $this->account->getDomain();
 		$socket = $this->api->getSocket();
 		$socket->set_method("POST");
 		$params = array(
 			"action" => "create",
-			"domain" => $this->account->getDomain(),
+			"domain" => $domain,
 			"user" => $data["username"],
 			"passwd" => $data["password"],
 			"passwd2" => $data["password"],
@@ -74,7 +76,7 @@ class EmailManager {
 				throw $exception;
 			}
 		}
-		$data["username"] .= "@" . $this->account->getDomain();
+		$data["username"] .= "@" . $domain;
 		return $data;
 	}
 
@@ -82,11 +84,12 @@ class EmailManager {
 		if (!isset($data["username"]) or !$data["username"]) {
 			throw new Exception("give 'username' index to modify email account");
 		}
+		$domain = (isset($data["domain"]) and $data["domain"]) ? $data["domain"] : $this->account->getDomain();
 		$socket = $this->api->getSocket();
 		$socket->set_method("POST");
 		$params = array(
 			"action" => "modify",
-			"domain" => $this->account->getDomain(),
+			"domain" => $domain,
 			"user" => $data["username"],
 		);
 		if (isset($data["password"]) and $data["password"]) {
@@ -107,16 +110,19 @@ class EmailManager {
 			$exception->setResponse($result);
 			throw $exception;
 		}
-		$data["username"] .= "@" . $this->account->getDomain();
+		$data["username"] .= "@" . $domain;
 		return $data;
 	}
 
-	public function deleteEmail(string $username): ?bool {
+	public function deleteEmail(array $data): ?bool {
+		if (!isset($data["username"]) or !$data["username"]) {
+			throw new Exception("give 'username' index to delete email account");
+		}
 		$socket = $this->api->getSocket();
 		$socket->set_method("POST");
 		$params = array(
 			"action" => "delete",
-			"domain" => $this->account->getDomain(),
+			"domain" => (isset($data["domain"]) and $data["domain"]) ? $data["domain"] : $this->account->getDomain(),
 			"user" => $username,
 		);
 		$socket->query("/CMD_API_POP", $params);
@@ -135,12 +141,13 @@ class EmailManager {
 		return true;
 	}
 	
-	public function getEmailForwarders(array $data): array {
+	public function getEmailForwarders(string $inputDomain = ""): array {
+		$domain = $inputDomain ? $inputDomain : $this->account->getDomain();
 		$socket = $this->api->getSocket();
 		$socket->set_method("POST");
 		$params = array(
 			"action" => "list",
-			"domain" => $this->account->getDomain(),
+			"domain" => $domain,
 		);
 		$socket->query("/CMD_API_EMAIL_FORWARDERS", $params);
 		$result = $socket->fetch_parsed_body();
@@ -152,19 +159,20 @@ class EmailManager {
 		}
 		$list = array();
 		foreach ($result as $username => $forward) {
-			$list[$username . "@" . $this->account->getDomain()] = $forward;
+			$list[$username . "@" . $domain] = $forward;
 		}
 		return $list;
 	}
 
 	public function createEmailForwarder(array $data): array {
+		$domain = (isset($data["domain"]) and $data["domain"]) ? $data["domain"] : $this->account->getDomain();
 		$socket = $this->api->getSocket();
 		$socket->set_method("POST");
 		$params = array(
 			"action" => "create",
-			"domain" => $this->account->getDomain(),
+			"domain" => $domain,
 			"user" => $data["username"],
-			"email" => $data["email"],
+			"email" => $data["email"], //forward
 		);
 		$socket->query("/CMD_API_EMAIL_FORWARDERS", $params);
 		$result = $socket->fetch_parsed_body();
@@ -179,19 +187,20 @@ class EmailManager {
 				throw $exception;
 			}
 		}
-		$data["user"] .= "@" . $this->account->getDomain();
+		$data["user"] .= "@" . $domain;
 		return $data;
 	}
 
 	public function modifyEmailForwarder(array $data) {
+		$domain = (isset($data["domain"]) and $data["domain"]) ? $data["domain"] : $this->account->getDomain();
 		$socket = $this->api->getSocket();
 		$socket->set_method("POST");
 		$params = array(
 			"action" => "modfiy",
 			"json" => "yes",
-			"domain" => $this->account->getDomain(),
+			"domain" => $domain,
 			"user" => $data["username"],
-			"email" => $data["forward"],
+			"email" => $data["email"], // forward
 		);
 		$socket->query("/CMD_API_EMAIL_FORWARDER", $params);
 		if (isset($result["error"]) and $result["error"] == 1) {
@@ -204,12 +213,13 @@ class EmailManager {
 	}
 
 	public function deleteEmailForwarder(array $data) {
+		$domain = (isset($data["domain"]) and $data["domain"]) ? $data["domain"] : $this->account->getDomain();
 		$socket = $this->api->getSocket();
 		$socket->set_method("POST");
 		$params = array(
 			"action" => "delete",
 			"json" => "yes",
-			"domain" => $this->account->getDomain(),
+			"domain" => $domain,
 			"select1" => $data["username"],
 		);
 		$socket->query("/CMD_API_EMAIL_FORWARDERS", $params);
@@ -228,12 +238,13 @@ class EmailManager {
 		return true;
 	}
 
-	public function getAutoResponders(array $data) {
+	public function getAutoResponders(string $inputDomain) {
+		$domain = $inputDomain ? $inputDomain : $this->account->getDomain();
 		$socket = $this->api->getSocket();
 		$socket->set_method("POST");
 		$params = array(
 			"action" => "list",
-			"domain" => $this->account->getDomain(),
+			"domain" => $domain,
 		);
 		$socket->query("/CMD_API_EMAIL_AUTORESPONDER", $params);
 		$result = $socket->fetch_parsed_body();
@@ -270,11 +281,12 @@ class EmailManager {
 		if (!isset($data["reply_time"]) or $data["reply_time"]) {
 			$data["reply_time"] = "1h";
 		}
+		$domain = (isset($data["domain"]) and $data["domain"]) ? $data["domain"] : $this->account->getDomain();
 		$socket = $this->api->getSocket();
 		$socket->set_method("POST");
 		$params = array(
 			"action" => "create",
-			"domain" => $this->account->getDomain(),
+			"domain" => $domain,
 			"user" => $data["username"],
 			"subject" => $data["subject"],
 			"reply_encoding" => $data["encoding"],
@@ -301,6 +313,7 @@ class EmailManager {
 				throw $exception;
 			}
 		}
+		$data["user"] .= "@" . $domain;
 		return $data;
 	}
 
@@ -308,18 +321,19 @@ class EmailManager {
 		if (!isset($data["username"]) or !$data["username"]) {
 			throw new Exception("give 'username' index to modify email account");
 		}
+		$domain = (isset($data["domain"]) and $data["domain"]) ? $data["domain"] : $this->account->getDomain();
 		$socket = $this->api->getSocket();
 		$socket->set_method("GET");
 		$socket->query("/CMD_API_EMAIL_AUTORESPONDER_MODIFY", array(
 			"json" => "yes",
-			"domain" => $this->account->getDomain(),
+			"domain" => $domain,
 			"user" => $data["username"],
 		));
 		$result = $socket->fetch_parsed_body();
 		$params = array(
 			"action" => "modify",
 			"json" => "yes",
-			"domain" => $this->account->getDomain(),
+			"domain" => $domain,
 			"user" => $data["username"],
 		);
 		$params["text"] = $result["text"];
@@ -374,11 +388,12 @@ class EmailManager {
 	}
 
 	public function deleteAutoResponder(array $data) {
+		$domain = (isset($data["domain"]) and $data["domain"]) ? $data["domain"] : $this->account->getDomain();
 		$socket = $this->api->getSocket();
 		$socket->set_method("POST");
 		$params = array(
 			"action" => "delete",
-			"domain" => $this->account->getDomain(),
+			"domain" => $domain,
 			"select1" => $data["username"],
 		);
 		$socket->query("/CMD_API_EMAIL_AUTORESPONDER", $params);
