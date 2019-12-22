@@ -131,6 +131,7 @@ class Account {
 		if ($this->username == "admin" and !isset($result["domain"])) {
 			$result["domain"] = "";
 		}
+		$oldUsername = $this->username;
 		$this->username = $result["username"];
 		$this->domain = $result["domain"];
 		$this->maxQuota = $result["quota"] != "unlimited" ? $result["quota"] : self::unlimited;
@@ -168,7 +169,7 @@ class Account {
 		$this->addonDomains = intval($usage["vdomains"]);
 		$this->emailForwarders = intval($usage["nemailf"]);
 		$this->emailResponders = intval($usage["nemailr"]);
-		if (isset($result["creator"]) and ($result["creator"] != "root" and $result["creator"] != "admin")) {
+		if (isset($result["creator"]) and $result["creator"] != "root" and $result["creator"] != "admin" and $result['creator'] != $oldUsername) {
 			$this->parent = self::importByUsername($this->api, $result["creator"]);
 		}
 		if (isset($result['date_created'])) {
