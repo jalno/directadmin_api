@@ -681,6 +681,16 @@ class Account {
 			$exception->setResponse($result);
 			throw $exception;
 		}
+		if ($this->reseller) {
+			$this->socket->query("/CMD_API_MODIFY_RESELLER", $params);
+			$result = $this->socket->fetch_parsed_body();
+			if (isset($result["error"]) and $result["error"] == 1) {
+				$exception = new FailedException();
+				$exception->setRequest($params);
+				$exception->setResponse($result);
+				throw $exception;
+			}
+		}
 		$this->reload();
 	}
 	public function suspend() {
