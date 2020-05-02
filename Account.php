@@ -673,23 +673,13 @@ class Account {
 			$params["dnscontrol"] = $this->dnscontrol ? "ON" : "OFF";
 		}
 		$this->socket->set_method("POST");
-		$this->socket->query("/CMD_API_MODIFY_USER", $params);
+		$this->socket->query(($this->reseller ? "/CMD_API_MODIFY_RESELLER" : "/CMD_API_MODIFY_USER"), $params);
 		$result = $this->socket->fetch_parsed_body();
 		if (isset($result["error"]) and $result["error"] == 1) {
 			$exception = new FailedException();
 			$exception->setRequest($params);
 			$exception->setResponse($result);
 			throw $exception;
-		}
-		if ($this->reseller) {
-			$this->socket->query("/CMD_API_MODIFY_RESELLER", $params);
-			$result = $this->socket->fetch_parsed_body();
-			if (isset($result["error"]) and $result["error"] == 1) {
-				$exception = new FailedException();
-				$exception->setRequest($params);
-				$exception->setResponse($result);
-				throw $exception;
-			}
 		}
 		$this->reload();
 	}
