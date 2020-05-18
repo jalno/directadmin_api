@@ -1108,9 +1108,10 @@ class Account {
 	}
 	/**
 	 * @param string $domain
-	 * @param string $certificates should contain public key and private key, and CA if there is any.
+	 * @param string $certificate should contain public key and private key.
+	 * @param string|null $ca CA certificate, if there is any.
 	 */
-	public function setupSSL(string $domain, string $certificates) {
+	public function setupSSL(string $domain, string $certificate, ?string $ca = null) {
 		$username = $this->api->getUsername();
 		$impersonate = $username != $this->username;
 		if ($impersonate) {
@@ -1119,28 +1120,50 @@ class Account {
 		}
 
 		$socket = $this->api->getSocket();
-		$params = array(
-			'action' => 'save',
-			'background' => 'auto',
-			'certificate' => $certificates,
-			'domain' => $this->domain,
-			'submit' => 'Save',
-			'type' => 'paste',
-		);
-		$socket->set_method("POST");
-		$socket->query("/CMD_API_SSL", $params);
-		$result = $socket->fetch_parsed_body();
+		try {
+			$params = array(
+				'action' => 'save',
+				'background' => 'auto',
+				'certificate' => $certificate,
+				'domain' => $this->domain,
+				'submit' => 'Save',
+				'type' => 'paste',
+			);
+			$socket->set_method("POST");
+			$socket->query("/CMD_API_SSL", $params);
+			$result = $socket->fetch_parsed_body();
 
-		if ($impersonate) {
-			$this->api->setUsername($username, $level, false);
-		}
+			if ((isset($result["error"]) and $result["error"])) {
+				$FailedException = new FailedException();
+				$FailedException->setRequest($params);
+				$FailedException->setResponse($result);
+				throw $FailedException;
+			}
+			$params = array(
+				'domain' => $this->domain,
+				'action' => 'save',
+				'type' => 'cacert',
+				'cacert' => $ca ?? "",
+			);
+			if ($ca !== null) {
+				$params['active'] = 'yes';
+			} 
+			$socket->set_method("POST");
+			$socket->query("/CMD_API_SSL", $params);
+			$result = $socket->fetch_parsed_body();
 
-		if ((isset($result["error"]) and $result["error"])) {
-			$FailedException = new FailedException();
-			$FailedException->setRequest($params);
-			$FailedException->setResponse($result);
-			throw $FailedException;
+			if ((isset($result["error"]) and $result["error"])) {
+				$FailedException = new FailedException();
+				$FailedException->setRequest($params);
+				$FailedException->setResponse($result);
+				throw $FailedException;
+			}
+		} finally {
+			if ($impersonate) {
+				$this->api->setUsername($username, $level, false);
+			}
 		}
+		
 	}
 	/**
 	 * Get create date
