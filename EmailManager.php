@@ -17,15 +17,44 @@ class EmailManager {
 		$this->api = $this->account->getAPI();
 	}
 
+	/**
+	 *
+	 * export an array like this:
+	 * Array
+	 * (
+	 * 	[domain] => domain.com
+	 * 	[list] => array()
+	 * )
+	 * each index of list array should something like this:
+	 * Array
+	 *	(
+	 *		[account] => info
+	 *		[login] => info@domain.com
+	 *		[usage] => Array
+	 *			(
+	 *				[apparent_usage] => 0.0857
+	 *				[imap_bytes] => 147456
+	 *				[quota] => 50 or unlimited
+	 *				[usage] => 0.1406
+	 *				[webmail_bytes] => 0.000000
+	 *			)
+	 *		[sent] => Array
+	 *			(
+	 *				[send_limit] => 200
+	 *				[sent] => 0
+	 *			)
+	 *		[suspended] => no
+	 *	)
+	 */
 	public function getEmails(string $inputDomain = "") {
 		$socket = $this->api->getSocket();
 		$socket->set_method("GET");
 		$domain = ($inputDomain) ? $inputDomain : $this->account->getDomain();
 		$params = array(
-			"action" => "list",
+			"json" => "yes",
 			"domain" => $domain,
 		);
-		$socket->query("/CMD_API_POP", $params);
+		$socket->query("/CMD_EMAIL_POP", $params);
 		$result = $socket->fetch_parsed_body();
 		if (isset($result["error"]) and $result["error"] == 1) {
 			$exception = new FailedException();
@@ -33,8 +62,16 @@ class EmailManager {
 			$exception->setResponse($result);
 			throw $exception;
 		}
-		$result["domain"] = $domain;
-		return $result;
+		$list = [];
+		foreach ($result["emails"] as $key => $item) {
+			if (is_numeric($key) and $key != 0) {
+				$list[] = $item;
+			}
+		}
+		return array(
+			"domain" => $domain,
+			"list" => $list,
+		);
 	}
 
 	public function createEmail(array $data): array {
@@ -50,7 +87,7 @@ class EmailManager {
 			}
 		}
 		$data["quota"] = (isset($data["quota"])) ? $data["quota"] : 50;
-		$data["limit"] = (isset($data["limit"])) ? $data["limit"] : 200;
+		$data["limit"] = (isset($data["limit"]) and $data["limit"] > 0) ? $data["limit"] : 200;
 		$domain = (isset($data["domain"]) and $data["domain"]) ? $data["domain"] : $this->account->getDomain();
 		$socket = $this->api->getSocket();
 		$socket->set_method("POST");
@@ -97,10 +134,12 @@ class EmailManager {
 			$params["passwd2"] = $data["password"];
 		}
 		foreach (array("quota", "limit") as $item) {
-			if (isset($data[$item]) and !is_numeric($data[$item])) {
-				throw new Exception($item . " must pass as int (Zero is unlimited)");
+			if (isset($data[$item])) {
+				if (!is_numeric($data[$item]) or $data[$item] < 0) {
+					throw new Exception($item . " must pass as int (Zero is unlimited)");
+				}
+				$params[$item] = $data[$item];
 			}
-			$params[$item] = $data[$item];
 		}
 		$socket->query("/CMD_API_POP", $params);
 		$result = $socket->fetch_parsed_body();
@@ -123,7 +162,7 @@ class EmailManager {
 		$params = array(
 			"action" => "delete",
 			"domain" => (isset($data["domain"]) and $data["domain"]) ? $data["domain"] : $this->account->getDomain(),
-			"user" => $username,
+			"user" => $data["username"],
 		);
 		$socket->query("/CMD_API_POP", $params);
 		$result = $socket->fetch_parsed_body();
@@ -140,7 +179,20 @@ class EmailManager {
 		}
 		return true;
 	}
-	
+	/**
+	 * export an array like this:
+	 * Array
+	 * (
+	 * 	[domain] => domain.com
+	 * 	[list] => array()
+	 * )
+	 * the [list] array is something like this
+	 * Array
+	 *	(
+	 *		[info] => folan@jeyserver.com
+	 *	)
+
+	 */
 	public function getEmailForwarders(string $inputDomain = ""): array {
 		$domain = $inputDomain ? $inputDomain : $this->account->getDomain();
 		$socket = $this->api->getSocket();
@@ -157,11 +209,10 @@ class EmailManager {
 			$exception->setResponse($result);
 			throw $exception;
 		}
-		$list = array();
-		foreach ($result as $username => $forward) {
-			$list[$username . "@" . $domain] = $forward;
-		}
-		return $list;
+		return array(
+			"domain" => $domain,
+			"list" => $result
+		);
 	}
 
 	public function createEmailForwarder(array $data): array {
@@ -238,7 +289,7 @@ class EmailManager {
 		return true;
 	}
 
-	public function getAutoResponders(string $inputDomain) {
+	public function getAutoResponders(string $inputDomain = "") {
 		$domain = $inputDomain ? $inputDomain : $this->account->getDomain();
 		$socket = $this->api->getSocket();
 		$socket->set_method("POST");
@@ -254,7 +305,16 @@ class EmailManager {
 			$exception->setResponse($result);
 			throw $exception;
 		}
-		return $result;
+		$list = [];
+		foreach ($result as $key => $item) {
+			$list[$key] = array(
+				"cc" => $item,
+			);
+		}
+		return array(
+			"domain" => $domain,
+			"list" => $list,
+		);
 	}
 
 	public function createAutoResponder(array $data) {
@@ -313,7 +373,7 @@ class EmailManager {
 				throw $exception;
 			}
 		}
-		$data["user"] .= "@" . $domain;
+		$data["username"] .= "@" . $domain;
 		return $data;
 	}
 
@@ -336,6 +396,7 @@ class EmailManager {
 			"domain" => $domain,
 			"user" => $data["username"],
 		);
+		$params["email"] = $result["email"];
 		$params["text"] = $result["text"];
 		foreach($result["headers"] as $key => $item) {
 			if (is_array($item)) {
@@ -357,13 +418,15 @@ class EmailManager {
 			}
 		}
 		if (isset($data["encoding"]) and $data["encoding"]) {
-			if (in_array($data["encoding"], array(self::UTF, self::ISO))) {
+			if (!in_array($data["encoding"], array(self::UTF, self::ISO))) {
 				throw new Exception("'encoding' index should be EmailManager::UTF or EmailManager::ISO");
 			}
 			$params["reply_encoding"] = $data["encoding"];
 		}
-		if (isset($data["content_type"]) and $data["content_type"] and !in_array($data["content_type"], array(self::HTML, self::PLAIN))) {
-			throw new Exception("'content_type' index should be EmailManager::HTML or EmailManager::PLAIN");
+		if (isset($data["content_type"]) and $data["content_type"]) {
+			if (!in_array($data["content_type"], array(self::HTML, self::PLAIN))) {
+				throw new Exception("'content_type' index should be EmailManager::HTML or EmailManager::PLAIN");
+			}
 			$params["reply_content_type"] = $data["content_type"];
 		}
 		if (isset($data["reply_time"]) and $data["reply_time"]) {
@@ -375,6 +438,10 @@ class EmailManager {
 		if (isset($data["subject"]) and $data["subject"]) {
 			$params["subject"] = $data["subject"];
 		}
+		if (isset($data["cc"]) and $data["cc"]) {
+			$params["cc"] = "ON";
+			$params["email"] = $data["cc"];
+		}
 		$socket->set_method("POST");
 		$socket->query("/CMD_API_EMAIL_AUTORESPONDER", $params);
 		$result = $socket->fetch_parsed_body();
@@ -384,7 +451,11 @@ class EmailManager {
 			$exception->setResponse($result);
 			throw $exception;
 		}
-		return true;
+		if (isset($params["email"])) {
+			$params["cc"] = $params["email"];
+		}
+		unset($params["action"], $params["json"], $params["email"]);
+		return $params;
 	}
 
 	public function deleteAutoResponder(array $data) {
