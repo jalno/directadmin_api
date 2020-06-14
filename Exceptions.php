@@ -29,3 +29,4 @@ class NotFoundAccountException extends FailedException {
 }
 class EmailAlreadyExistException extends FailedException {}
 class EmailNotExistException extends FailedException {}
+class ReachedLimitException extends FailedException {}

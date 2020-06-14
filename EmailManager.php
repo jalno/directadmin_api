@@ -15,6 +15,9 @@ class EmailManager {
 	public function __construct(Account $account) {
 		$this->account = $account;
 		$this->api = $this->account->getAPI();
+		if (strpos($this->api->getUsername(), "|") === false) {
+			$this->api->setUsername($this->account->getUsername(), API::User, true);
+		}
 	}
 
 	/**
@@ -56,7 +59,7 @@ class EmailManager {
 		);
 		$socket->query("/CMD_EMAIL_POP", $params);
 		$result = $socket->fetch_parsed_body();
-		if (isset($result["error"]) and $result["error"] == 1) {
+		if (isset($result["error"]) and $result["error"]) {
 			$exception = new FailedException();
 			$exception->setRequest($params);
 			$exception->setResponse($result);
@@ -65,7 +68,7 @@ class EmailManager {
 		$list = [];
 		foreach ($result["emails"] as $key => $item) {
 			if (is_numeric($key) and $key != 0) {
-				$list[] = $item;
+				$list[$item["account"]] = $item;
 			}
 		}
 		return array(
@@ -102,10 +105,13 @@ class EmailManager {
 		);
 		$socket->query("/CMD_API_POP", $params);
 		$result = $socket->fetch_parsed_body();
-		if (isset($result["error"]) and $result["error"] == 1) {
-			$userExist = stripos($result["details"], "That user already exists");
-			if ($userExist !== false) {
-				throw new EmailAlreadyExistException();
+		if (isset($result["error"]) and $result["error"]) {
+			if (isset($result["details"])) {
+				if (stripos($result["details"], "That user already exists") !== false) {
+					throw new EmailAlreadyExistException();
+				} else if (stripos($result["details"], "You have already reached your assigned limit") !== false) {
+					throw new ReachedLimitException();
+				}
 			} else {
 				$exception = new FailedException();
 				$exception->setRequest($params);
@@ -166,9 +172,9 @@ class EmailManager {
 		);
 		$socket->query("/CMD_API_POP", $params);
 		$result = $socket->fetch_parsed_body();
-		if (isset($result["error"]) and $result["error"] == 1) {
+		if (isset($result["error"]) and $result["error"]) {
 			$userExist = stripos($result["details"], "does not exist");
-			if ($userExist !== false) {
+			if (isset($result["details"]) and stripos($result["details"], "does not exist") !== false) {
 				throw new EmailNotExistException();
 			} else {
 				$exception = new FailedException();
@@ -203,15 +209,16 @@ class EmailManager {
 		);
 		$socket->query("/CMD_API_EMAIL_FORWARDERS", $params);
 		$result = $socket->fetch_parsed_body();
-		if (isset($result["error"]) and $result["error"] == 1) {
+		if (isset($result["error"]) and $result["error"]) {
 			$exception = new FailedException();
 			$exception->setRequest($params);
 			$exception->setResponse($result);
 			throw $exception;
 		}
+
 		return array(
 			"domain" => $domain,
-			"list" => $result
+			"list" => $result,
 		);
 	}
 
@@ -223,14 +230,17 @@ class EmailManager {
 			"action" => "create",
 			"domain" => $domain,
 			"user" => $data["username"],
-			"email" => $data["email"], //forward
+			"email" => $data["forward"],
 		);
 		$socket->query("/CMD_API_EMAIL_FORWARDERS", $params);
 		$result = $socket->fetch_parsed_body();
-		if (isset($result["error"]) and $result["error"] == 1) {
-			$userExist = stripos($result["details"], "already exists");
-			if ($userExist !== false) {
-				throw new EmailAlreadyExistException();
+		if (isset($result["error"]) and $result["error"]) {
+			if (isset($result["details"])) {
+				if (stripos($result["details"], "already exists") !== false) {
+					throw new EmailAlreadyExistException();
+				} else if (stripos($result["details"], "You have already reached your assigned limit") !== false) {
+					throw new ReachedLimitException();
+				}
 			} else {
 				$exception = new FailedException();
 				$exception->setRequest($params);
@@ -238,8 +248,11 @@ class EmailManager {
 				throw $exception;
 			}
 		}
-		$data["user"] .= "@" . $domain;
-		return $data;
+		return array(
+			"domain" => $domain,
+			"username" => $data["username"],
+			"forward" => $data["forward"],
+		);
 	}
 
 	public function modifyEmailForwarder(array $data) {
@@ -251,10 +264,11 @@ class EmailManager {
 			"json" => "yes",
 			"domain" => $domain,
 			"user" => $data["username"],
-			"email" => $data["email"], // forward
+			"email" => $data["forward"], // forward
 		);
-		$socket->query("/CMD_API_EMAIL_FORWARDER", $params);
-		if (isset($result["error"]) and $result["error"] == 1) {
+		$socket->query("/CMD_EMAIL_FORWARDER", $params);
+		$result = $socket->fetch_parsed_body();
+		if (isset($result["error"]) and $result["error"]) {
 			$exception = new FailedException();
 			$exception->setRequest($params);
 			$exception->setResponse($result);
@@ -270,14 +284,14 @@ class EmailManager {
 		$params = array(
 			"action" => "delete",
 			"json" => "yes",
+			"delete" => "yes",
 			"domain" => $domain,
-			"select1" => $data["username"],
+			"select0" => $data["username"],
 		);
-		$socket->query("/CMD_API_EMAIL_FORWARDERS", $params);
+		$socket->query("/CMD_EMAIL_FORWARDER", $params);
 		$result = $socket->fetch_parsed_body();
-		if (isset($result["error"]) and $result["error"] == 1) {
-			$userExist = stripos($result["details"], "does not exist");
-			if ($userExist !== false) {
+		if (isset($result["error"]) and $result["error"]) {
+			if (isset($result["details"]) and stripos($result["details"], "does not exist") !== false) {
 				throw new EmailNotExistException();
 			} else {
 				$exception = new FailedException();
@@ -299,7 +313,7 @@ class EmailManager {
 		);
 		$socket->query("/CMD_API_EMAIL_AUTORESPONDER", $params);
 		$result = $socket->fetch_parsed_body();
-		if (isset($result["error"]) and $result["error"] == 1) {
+		if (isset($result["error"]) and $result["error"]) {
 			$exception = new FailedException();
 			$exception->setRequest($params);
 			$exception->setResponse($result);
@@ -362,9 +376,8 @@ class EmailManager {
 		}
 		$socket->query("/CMD_API_EMAIL_AUTORESPONDER", $params);
 		$result = $socket->fetch_parsed_body();
-		if (isset($result["error"]) and $result["error"] == 1) {
-			$userExist = stripos($result["details"], "An autoresponder with that name already exists");
-			if ($userExist !== false) {
+		if (isset($result["error"]) and $result["error"]) {
+			if (isset($result["details"]) and stripos($result["details"], "An autoresponder with that name already exists") !== false) {
 				throw new EmailAlreadyExistException();
 			} else {
 				$exception = new FailedException();
@@ -383,6 +396,7 @@ class EmailManager {
 		}
 		$domain = (isset($data["domain"]) and $data["domain"]) ? $data["domain"] : $this->account->getDomain();
 		$socket = $this->api->getSocket();
+		$socket->set_login();
 		$socket->set_method("GET");
 		$socket->query("/CMD_API_EMAIL_AUTORESPONDER_MODIFY", array(
 			"json" => "yes",
@@ -396,6 +410,12 @@ class EmailManager {
 			"domain" => $domain,
 			"user" => $data["username"],
 		);
+		if (isset($result["error"]) and $result["error"]) {
+			$exception = new FailedException();
+			$exception->setRequest($params);
+			$exception->setResponse($result);
+			throw $exception;
+		}
 		$params["email"] = $result["email"];
 		$params["text"] = $result["text"];
 		foreach($result["headers"] as $key => $item) {
@@ -445,7 +465,7 @@ class EmailManager {
 		$socket->set_method("POST");
 		$socket->query("/CMD_API_EMAIL_AUTORESPONDER", $params);
 		$result = $socket->fetch_parsed_body();
-		if (isset($result["error"]) and $result["error"] == 1) {
+		if (isset($result["error"]) and $result["error"]) {
 			$exception = new FailedException();
 			$exception->setRequest($params);
 			$exception->setResponse($result);
@@ -469,7 +489,7 @@ class EmailManager {
 		);
 		$socket->query("/CMD_API_EMAIL_AUTORESPONDER", $params);
 		$result = $socket->fetch_parsed_body();
-		if (isset($result["error"]) and $result["error"] == 1) {
+		if (isset($result["error"]) and $result["error"]) {
 			$exception = new FailedException();
 			$exception->setRequest($params);
 			$exception->setResponse($result);
