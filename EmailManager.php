@@ -1,6 +1,7 @@
 <?php
 namespace packages\directadmin_api;
 
+use \InvalidArgumentException;
 use packages\base\utility\Password;
 
 class EmailManager {
@@ -47,8 +48,8 @@ class EmailManager {
 	 *		[suspended] => no
 	 *	)
 	 */
-	public function getEmails(string $inputDomain = ""): array {
-		$domain = ($inputDomain ? $inputDomain : $this->account->getDomain());
+	public function getEmails(string $domain = ""): array {
+		$domain = ($domain ? $domain : $this->account->getDomain());
 		$username = $level = null;
 		$impersonate = $this->preQuery($username, $level); // $username, $level passed by refrence
 		$socket = $this->api->getSocket();
@@ -82,15 +83,15 @@ class EmailManager {
 
 	public function createEmail(array $data): array {
 		if (!isset($data["username"]) or !$data["username"]) {
-			throw new Exception("'username' is required to create new email account");
-		}
-		if (!isset($data["password"])) {
-			$data["password"] = Password::generate();
+			throw new InvalidArgumentException("'username' is required to create new email account");
 		}
 		foreach (array("quota", "limit") as $item) {
 			if (isset($data[$item]) and !is_numeric($data[$item])) {
-				throw new Exception($item . " must pass as int (zero is unlimited)");
+				throw new InvalidArgumentException($item . " must pass as int (zero is unlimited)");
 			}
+		}
+		if (!isset($data["password"])) {
+			$data["password"] = Password::generate();
 		}
 		$data["quota"] = (isset($data["quota"])) ? $data["quota"] : 50;
 		$data["limit"] = (isset($data["limit"]) and $data["limit"] > 0) ? $data["limit"] : 200;
@@ -133,17 +134,21 @@ class EmailManager {
 
 	public function modifyEmail(array $data): array {
 		if (!isset($data["username"]) or !$data["username"]) {
-			throw new Exception("give 'username' index to modify email account");
+			throw new InvalidArgumentException("give 'username' index to modify email account");
 		}
-		$domain = (isset($data["domain"]) and $data["domain"]) ? $data["domain"] : $this->account->getDomain();
+		foreach (array("quota", "limit") as $item) {
+			if (isset($data[$item]) and !is_numeric($data[$item])) {
+				throw new InvalidArgumentException($item . " must pass as int (zero is unlimited)");
+			}
+		}
+		$data["domain"] = (isset($data["domain"]) and $data["domain"]) ? $data["domain"] : $this->account->getDomain();
 		$username = $level = null;
 		$impersonate = $this->preQuery($username, $level); // $username, $level passed by refrence
-
 		$socket = $this->api->getSocket();
 		$socket->set_method("POST");
 		$params = array(
 			"action" => "modify",
-			"domain" => $domain,
+			"domain" => $data["domain"],
 			"user" => $data["username"],
 		);
 		if (isset($data["password"]) and $data["password"]) {
@@ -152,9 +157,6 @@ class EmailManager {
 		}
 		foreach (array("quota", "limit") as $item) {
 			if (isset($data[$item])) {
-				if (!is_numeric($data[$item]) or $data[$item] < 0) {
-					throw new Exception($item . " must pass as int (Zero is unlimited)");
-				}
 				$params[$item] = $data[$item];
 			}
 		}
@@ -163,23 +165,21 @@ class EmailManager {
 		if ($impersonate) {
 			$this->api->setUsername($username, $level, false);
 		}
-		if (isset($result["error"]) and $result["error"] == 1) {
+		if (isset($result["error"]) and $result["error"]) {
 			$exception = new FailedException();
 			$exception->setRequest($params);
 			$exception->setResponse($result);
 			throw $exception;
 		}
-		$data["username"] .= "@" . $domain;
 		return $data;
 	}
 
 	public function deleteEmail(array $data): ?bool {
 		if (!isset($data["username"]) or !$data["username"]) {
-			throw new Exception("give 'username' index to delete email account");
+			throw new InvalidArgumentException("give 'username' index to delete email account");
 		}
 		$username = $level = null;
 		$impersonate = $this->preQuery($username, $level); // $username, $level passed by refrence
-
 		$socket = $this->api->getSocket();
 		$socket->set_method("POST");
 		$params = array(
@@ -193,7 +193,6 @@ class EmailManager {
 			$this->api->setUsername($username, $level, false);
 		}
 		if (isset($result["error"]) and $result["error"]) {
-			$userExist = stripos($result["details"], "does not exist");
 			if (isset($result["details"]) and stripos($result["details"], "does not exist") !== false) {
 				throw new EmailNotExistException();
 			} else {
@@ -219,8 +218,8 @@ class EmailManager {
 	 *	)
 
 	 */
-	public function getEmailForwarders(string $inputDomain = ""): array {
-		$domain = ($inputDomain ? $inputDomain : $this->account->getDomain());
+	public function getEmailForwarders(string $domain = ""): array {
+		$domain = ($domain ? $domain : $this->account->getDomain());
 		$username = $level = null;
 		$impersonate = $this->preQuery($username, $level); // $username, $level passed by refrence
 		$socket = $this->api->getSocket();
@@ -247,6 +246,11 @@ class EmailManager {
 	}
 
 	public function createEmailForwarder(array $data): array {
+		foreach (array("username", "forward") as $item) {
+			if (!isset($data[$item]) or !$data[$item] or !is_string($data[$item])) {
+				throw new InvalidArgumentException("you should pass: " . $item . " and it must be as string");
+			}
+		}
 		$domain = (isset($data["domain"]) and $data["domain"]) ? $data["domain"] : $this->account->getDomain();
 		$username = $level = null;
 		$impersonate = $this->preQuery($username, $level); // $username, $level passed by refrence
@@ -284,8 +288,13 @@ class EmailManager {
 		);
 	}
 
-	public function modifyEmailForwarder(array $data) {
-		$domain = (isset($data["domain"]) and $data["domain"]) ? $data["domain"] : $this->account->getDomain();
+	public function modifyEmailForwarder(array $data): array {
+		foreach (array("username", "forward") as $item) {
+			if (!isset($data[$item]) or !$data[$item] or !is_string($data[$item])) {
+				throw new InvalidArgumentException("you should pass: " . $item . " and it must be as string");
+			}
+		}
+		$data["domain"] = (isset($data["domain"]) and $data["domain"]) ? $data["domain"] : $this->account->getDomain();
 		$username = $level = null;
 		$impersonate = $this->preQuery($username, $level); // $username, $level passed by refrence
 		$socket = $this->api->getSocket();
@@ -293,7 +302,7 @@ class EmailManager {
 		$params = array(
 			"action" => "modfiy",
 			"json" => "yes",
-			"domain" => $domain,
+			"domain" => $data["domain"],
 			"user" => $data["username"],
 			"email" => $data["forward"], // forward
 		);
@@ -308,11 +317,14 @@ class EmailManager {
 			$exception->setResponse($result);
 			throw $exception;
 		}
-		return true;
+		return $data;
 	}
 
-	public function deleteEmailForwarder(array $data) {
-		$domain = (isset($data["domain"]) and $data["domain"]) ? $data["domain"] : $this->account->getDomain();
+	public function deleteEmailForwarder(array $data):? bool {
+		if (!isset($data["username"]) or !$data["username"] or !is_string($data["username"])) {
+			throw new InvalidArgumentException("you should pass: 'username' index and it must be as string");
+		}
+		$data["domain"] = (isset($data["domain"]) and $data["domain"]) ? $data["domain"] : $this->account->getDomain();
 		$username = $level = null;
 		$impersonate = $this->preQuery($username, $level); // $username, $level passed by refrence
 		$socket = $this->api->getSocket();
@@ -321,7 +333,7 @@ class EmailManager {
 			"action" => "delete",
 			"json" => "yes",
 			"delete" => "yes",
-			"domain" => $domain,
+			"domain" => $data["domain"],
 			"select0" => $data["username"],
 		);
 		$socket->query("/CMD_EMAIL_FORWARDER", $params);
@@ -342,8 +354,8 @@ class EmailManager {
 		return true;
 	}
 
-	public function getAutoResponders(string $inputDomain = "") {
-		$domain = ($inputDomain ? $inputDomain : $this->account->getDomain());
+	public function getAutoResponders(string $domain = ""): array {
+		$domain = ($domain ? $domain : $this->account->getDomain());
 		$username = $level = null;
 		$impersonate = $this->preQuery($username, $level); // $username, $level passed by refrence
 		$socket = $this->api->getSocket();
@@ -376,22 +388,22 @@ class EmailManager {
 	}
 
 	public function createAutoResponder(array $data) {
-		if (!isset($data["username"]) or !$data["username"]) {
-			throw new Exception("give 'username' index to modify email account");
+		if (!isset($data["username"]) or !$data["username"] or !is_string($data["username"])) {
+			throw new InvalidArgumentException("you should pass: 'username' index and it must be as string");
 		}
 		if (!isset($data["subject"]) or !$data["subject"]) {
 			$data["subject"] = "Autoreply";
 		}
 		if (isset($data["encoding"]) and $data["encoding"]) {
 			if (in_array($data["encoding"], array(self::UTF, self::ISO))) {
-				throw new Exception("'encoding' index should be EmailManager::UTF or EmailManager::ISO");
+				throw new InvalidArgumentException("'encoding' index should be EmailManager::UTF or EmailManager::ISO");
 			}
 		} else {
 			$data["encoding"] = self::UTF;
 		}
 		if (isset($data["content_type"]) and $data["content_type"]) {
 			if (!in_array($data["content_type"], array(self::HTML, self::PLAIN))) {
-				throw new Exception("'content_type' index should be EmailManager::HTML or EmailManager::PLAIN");
+				throw new InvalidArgumentException("'content_type' index should be EmailManager::HTML or EmailManager::PLAIN");
 			}
 		} else {
 			$data["content_type"] = self::PLAIN;
@@ -399,14 +411,14 @@ class EmailManager {
 		if (!isset($data["reply_time"]) or $data["reply_time"]) {
 			$data["reply_time"] = "1h";
 		}
-		$domain = (isset($data["domain"]) and $data["domain"]) ? $data["domain"] : $this->account->getDomain();
+		$data["domain"] = (isset($data["domain"]) and $data["domain"]) ? $data["domain"] : $this->account->getDomain();
 		$username = $level = null;
 		$impersonate = $this->preQuery($username, $level); // $username, $level passed by refrence
 		$socket = $this->api->getSocket();
 		$socket->set_method("POST");
 		$params = array(
 			"action" => "create",
-			"domain" => $domain,
+			"domain" => $data["domain"],
 			"user" => $data["username"],
 			"subject" => $data["subject"],
 			"reply_encoding" => $data["encoding"],
@@ -435,15 +447,14 @@ class EmailManager {
 				throw $exception;
 			}
 		}
-		$data["username"] .= "@" . $domain;
 		return $data;
 	}
 
 	public function modifyAutoResponder(array $data) {
-		if (!isset($data["username"]) or !$data["username"]) {
-			throw new Exception("give 'username' index to modify email account");
+		if (!isset($data["username"]) or !$data["username"] or !is_string($data["username"])) {
+			throw new InvalidArgumentException("you should pass: 'username' index and it must be as string");
 		}
-		$domain = (isset($data["domain"]) and $data["domain"]) ? $data["domain"] : $this->account->getDomain();
+		$data["domain"] = (isset($data["domain"]) and $data["domain"]) ? $data["domain"] : $this->account->getDomain();
 
 		$username = $level = null;
 		$impersonate = $this->preQuery($username, $level); // $username, $level passed by refrence
@@ -451,25 +462,25 @@ class EmailManager {
 		$socket->set_method("GET");
 		$socket->query("/CMD_API_EMAIL_AUTORESPONDER_MODIFY", array(
 			"json" => "yes",
-			"domain" => $domain,
+			"domain" => $data["domain"],
 			"user" => $data["username"],
 		));
 		$result = $socket->fetch_parsed_body();
 		if ($impersonate) {
 			$this->api->setUsername($username, $level, false);
 		}
-		$params = array(
-			"action" => "modify",
-			"json" => "yes",
-			"domain" => $domain,
-			"user" => $data["username"],
-		);
 		if (isset($result["error"]) and $result["error"]) {
 			$exception = new FailedException();
 			$exception->setRequest($params);
 			$exception->setResponse($result);
 			throw $exception;
 		}
+		$params = array(
+			"action" => "modify",
+			"json" => "yes",
+			"domain" => $data["domain"],
+			"user" => $data["username"],
+		);
 		$params["email"] = $result["email"];
 		$params["text"] = $result["text"];
 		foreach($result["headers"] as $key => $item) {
@@ -493,13 +504,13 @@ class EmailManager {
 		}
 		if (isset($data["encoding"]) and $data["encoding"]) {
 			if (!in_array($data["encoding"], array(self::UTF, self::ISO))) {
-				throw new Exception("'encoding' index should be EmailManager::UTF or EmailManager::ISO");
+				throw new InvalidArgumentException("'encoding' index should be EmailManager::UTF or EmailManager::ISO");
 			}
 			$params["reply_encoding"] = $data["encoding"];
 		}
 		if (isset($data["content_type"]) and $data["content_type"]) {
 			if (!in_array($data["content_type"], array(self::HTML, self::PLAIN))) {
-				throw new Exception("'content_type' index should be EmailManager::HTML or EmailManager::PLAIN");
+				throw new InvalidArgumentException("'content_type' index should be EmailManager::HTML or EmailManager::PLAIN");
 			}
 			$params["reply_content_type"] = $data["content_type"];
 		}
@@ -516,9 +527,13 @@ class EmailManager {
 			$params["cc"] = "ON";
 			$params["email"] = $data["cc"];
 		}
+		$impersonate = $this->preQuery($username, $level); // $username, $level passed by refrence
 		$socket->set_method("POST");
 		$socket->query("/CMD_API_EMAIL_AUTORESPONDER", $params);
 		$result = $socket->fetch_parsed_body();
+		if ($impersonate) {
+			$this->api->setUsername($username, $level, false);
+		}
 		if (isset($result["error"]) and $result["error"]) {
 			$exception = new FailedException();
 			$exception->setRequest($params);
@@ -532,9 +547,11 @@ class EmailManager {
 		return $params;
 	}
 
-	public function deleteAutoResponder(array $data) {
+	public function deleteAutoResponder(array $data):? bool {
+		if (!isset($data["username"]) or !$data["username"] or !is_string($data["username"])) {
+			throw new InvalidArgumentException("you should pass: 'username' index and it must be as string");
+		}
 		$domain = (isset($data["domain"]) and $data["domain"]) ? $data["domain"] : $this->account->getDomain();
-
 		$impersonate = $this->preQuery($username, $level); // $username, $level passed by refrence
 		$socket = $this->api->getSocket();
 		$socket->set_method("POST");
