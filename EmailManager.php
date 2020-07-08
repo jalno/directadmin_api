@@ -239,19 +239,25 @@ class EmailManager {
 			$exception->setResponse($result);
 			throw $exception;
 		}
+		$list = [];
+		foreach ($result as $username => $forwarded) {
+			$list[$username] = explode(",", $forwarded);
+		}
 		return array(
 			"domain" => $domain,
-			"list" => $result,
+			"list" => $list,
 		);
 	}
 
 	public function createEmailForwarder(array $data): array {
-		foreach (array("username", "forward") as $item) {
-			if (!isset($data[$item]) or !$data[$item] or !is_string($data[$item])) {
-				throw new InvalidArgumentException("you should pass: " . $item . " and it must be as string");
-			}
+		if (!isset($data["username"]) or !$data["username"] or !is_string($data["username"])) {
+			throw new InvalidArgumentException("you should pass: 'username' and it must be as string");
+		}
+		if (!isset($data["forward"]) or (!is_array($data["forward"]) and !is_string($data["forward"]))) {
+			throw new InvalidArgumentException("you should pass: 'forward' and it must be as string or array of string");
 		}
 		$domain = (isset($data["domain"]) and $data["domain"]) ? $data["domain"] : $this->account->getDomain();
+		$forward = (is_array($data["forward"]) ? implode(",", $data["forward"]) : $data["forward"]);
 		$username = $level = null;
 		$impersonate = $this->preQuery($username, $level); // $username, $level passed by refrence
 		$socket = $this->api->getSocket();
@@ -260,7 +266,7 @@ class EmailManager {
 			"action" => "create",
 			"domain" => $domain,
 			"user" => $data["username"],
-			"email" => $data["forward"],
+			"email" => $forward,
 		);
 		$socket->query("/CMD_API_EMAIL_FORWARDERS", $params);
 		$result = $socket->fetch_parsed_body();
@@ -289,12 +295,14 @@ class EmailManager {
 	}
 
 	public function modifyEmailForwarder(array $data): array {
-		foreach (array("username", "forward") as $item) {
-			if (!isset($data[$item]) or !$data[$item] or !is_string($data[$item])) {
-				throw new InvalidArgumentException("you should pass: " . $item . " and it must be as string");
-			}
+		if (!isset($data["username"]) or !$data["username"] or !is_string($data["username"])) {
+			throw new InvalidArgumentException("you should pass: 'username' and it must be as string");
+		}
+		if (!isset($data["forward"]) or (!is_array($data["forward"]) and !is_string($data["forward"]))) {
+			throw new InvalidArgumentException("you should pass: 'forward' and it must be as string or array of string");
 		}
 		$data["domain"] = (isset($data["domain"]) and $data["domain"]) ? $data["domain"] : $this->account->getDomain();
+		$forward = (is_array($data["forward"]) ? implode(",", $data["forward"]) : $data["forward"]);
 		$username = $level = null;
 		$impersonate = $this->preQuery($username, $level); // $username, $level passed by refrence
 		$socket = $this->api->getSocket();
@@ -304,7 +312,7 @@ class EmailManager {
 			"json" => "yes",
 			"domain" => $data["domain"],
 			"user" => $data["username"],
-			"email" => $data["forward"], // forward
+			"email" => $forward, // forward
 		);
 		$socket->query("/CMD_EMAIL_FORWARDER", $params);
 		$result = $socket->fetch_parsed_body();
