@@ -151,6 +151,9 @@ class EmailManager {
 			"domain" => $data["domain"],
 			"user" => $data["username"],
 		);
+		if (isset($data["newUsername"]) and $data["newUsername"]) {
+			$params["newuser"] = $data["newUsername"];
+		}
 		if (isset($data["password"]) and $data["password"]) {
 			$params["passwd"] = $data["password"];
 			$params["passwd2"] = $data["password"];
