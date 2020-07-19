@@ -311,7 +311,7 @@ class EmailManager {
 		$socket = $this->api->getSocket();
 		$socket->set_method("POST");
 		$params = array(
-			"action" => "modfiy",
+			"action" => "modify",
 			"json" => "yes",
 			"domain" => $data["domain"],
 			"user" => $data["username"],
