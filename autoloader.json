@@ -48,9 +48,10 @@
 			"classes": [
 				"Exception",
 				"FailedException",
+				"ReachedLimitException",
 				"EmailNotExistException",
-				"EmailAlreadyExistException",
-				"NotFoundAccountException"
+				"NotFoundAccountException",
+				"EmailAlreadyExistException"
 			],
 			"file": "Exceptions.php"
 		}
