@@ -144,7 +144,7 @@ class Account {
 		$this->maxSqls = $result["mysql"] != "unlimited" ? $result["mysql"] : self::unlimited;
 		$this->maxEmailForwarders = $result["nemailf"] != "unlimited" ? $result["nemailf"] : self::unlimited;
 		$this->maxEmailResponders = $result["nemailr"] != "unlimited" ? $result["nemailr"] : self::unlimited;
-		$this->reseller = ($result["account"] != "ON");
+		$this->reseller = ($result["usertype"] == "reseller");
 		$this->anonymousFtp = ($result["aftp"] == "ON");
 		$this->php = ($result["php"] == "ON");
 		$this->spam = ($result["spam"] == "ON");
