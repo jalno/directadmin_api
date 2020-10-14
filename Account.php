@@ -69,6 +69,7 @@ class Account {
 	protected $nameservers = [];
 	protected $parent;
 	protected $databaseManager;
+	protected $domainPointerManager;
 	
 	/** @var int|null unix timestamp */
 	protected $create_at;
@@ -1105,6 +1106,12 @@ class Account {
 			$this->emailManager = new EmailManager($this);
 		}
 		return $this->emailManager;
+	}
+	public function getDomainPointerManager(): DomainPointerManager {
+		if (!$this->domainPointerManager) {
+			$this->domainPointerManager = new DomainPointerManager($this);
+		}
+		return $this->domainPointerManager;
 	}
 	/**
 	 * @param string $domain

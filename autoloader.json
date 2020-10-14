@@ -45,6 +45,10 @@
 			"file": "BackupManager.php"
 		},
 		{
+			"classes": ["DomainPointerManager"],
+			"file": "DomainPointerManager.php"
+		},
+		{
 			"classes": [
 				"Exception",
 				"FailedException",
