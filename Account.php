@@ -1,6 +1,7 @@
 <?php
 namespace packages\directadmin_api;
-use packages\base\{date, log, utility};
+
+use packages\base\{date, log, utility, json};
 
 class Account {
 	const unlimited = -1;
@@ -408,32 +409,62 @@ class Account {
 		$log->reply("no problem");
 		$startAt = date::time();
 		$backupIsReady = false;
-		$log->info("get system tickets");
-		$countTickets = count($this->getTickets());
-		$log->reply($countTickets, " ticket found");
+
+		$log->info("get system last message");
+		$tickets = $this->getTickets(array(
+			"ipp" => 1,
+		));
+		$lastTicket = reset($tickets);
+		if ($lastTicket) {
+			$log->reply("sent in: ", Date::format("Y/m/d H-i-s", $lastTicket["last_message"]));
+		} else {
+			$log->reply("NotFound");
+		}
 		$found = false;
 		$log->info("listening for add new ticket in ", $timeout, " Second");
-		while(($timeout == 0 or date::time() - $startAt < $timeout) and !$found) {
+		while (($timeout == 0 or date::time() - $startAt < $timeout) and !$found) {
 			$log->info("get system tickets for checking new ticket");
 			$tickets = $this->getTickets();
-			$count = count($tickets);
-			$log->reply($count, " ticket found");
-			if ($count > $countTickets) {
-				$log->info("the new ticket found, check it for sure");
-				$ticket = $tickets[0];
-				if (
-					strtolower($ticket["subject"]) == "your backups are now ready" and
-					strtolower($ticket["new"]) == "yes"
-				) {
-					$log->reply("found ticket that I was looking for");
-					$found = true;
-					break;
-				} else if (
-					strtolower($ticket["subject"]) == "an error occurred during the backup" and
-					strtolower($ticket["new"]) == "yes"
-				) {
-					$log->reply()->fatal("Oh.., the create backup process has faield");
-					throw new FailedToCreateBackup();
+			foreach ($tickets as $ticket) {
+				if (!$lastTicket or $ticket["last_message"] > $lastTicket["last_message"]) {
+					$log->info("the new ticket found, check it for sure");
+					$subject = strtolower($ticket["subject"]);
+					if (
+						substr($subject, 0, strlen("your backups are now ready")) == "your backups are now ready" and
+						strtolower($ticket["new"]) == "yes"
+					) {
+						$content = $this->getTicket($ticket["message"]);
+						if ($content) {
+							if (stripos($content["message"], "User {$this->username} has been backed up") !== false) {
+								$log->reply("found ticket that I was looking for");
+								$found = true;
+								break;
+							} else {
+								$log->reply("Sorry. Maybe next time");
+							}
+						} else {
+							$log->reply()->warn("Unable to get message content");
+						}
+					} else if (
+						substr($subject, 0, strlen("an error occurred during the backup")) == "an error occurred during the backup" and
+						strtolower($ticket["new"]) == "yes"
+					) {
+						$log->reply("Oh it's seems an error occurred, Let's check it");
+						$content = $this->getTicket($ticket["message"]);
+						if ($content) {
+							if (stripos($content["message"], "User {$this->username} has been backed up") !== false or stripos($content["message"], "{$this->username}.tar.gz") !== false) {
+								$log->reply()->fatal("Sorry.., the create backup process has faield");
+								$e = new FailedException();
+								$e->setRequest($params);
+								$e->setResponse($result);
+								throw $e;
+							} else {
+								$log->reply("Be Happy, It's not our service");
+							}
+						} else {
+							$log->reply()->warn("Unable to get message content");
+						}
+					}
 				}
 			}
 			sleep(2);
@@ -1181,31 +1212,54 @@ class Account {
 		return $this->create_at;
 	}
 	
-	protected function getTickets(): array {
+	/**
+	 * Get Ticket Message data
+	 * @var string $id
+	 * 
+	 * @return array|false|null
+	 */
+	public function getTicket(string $id) {
 		$this->socket->set_method("GET");
-		$this->socket->query("/CMD_API_TICKET");
-		$result = $this->socket->fetch_parsed_body();
+		$this->socket->query("/CMD_TICKET", array(
+			"json" => "yes",
+			"number" => $id,
+			"action" => "view",
+			"type" => "message",
+		));
+		$result = json\decode($this->socket->fetch_body());
 		if (isset($result["error"]) and $result["error"]) {
 			$FailedException = new FailedException();
 			$FailedException->setResponse($result);
 			throw $FailedException;
 		}
-		$tickets = array();
-		foreach ($result as $key => $data) {
-			$values = array();
-			$parts = explode("&", $data);
-			foreach ($parts as $part) {
-				list($name, $value) = explode("=", $part, 2);
-				$values[$name] = $value;
-			}
-			$tickets[$key] = $values;
+		return $result[0] ?? [];
+	}
+	/**
+	 * Get Ticket message list
+	 * @var array $params
+	 * You can pass query options as key-value array
+	 * 
+	 * @return array
+	 */
+	public function getTickets(?array $params = array()): array {
+		$params = array_replace(array(
+			"json" => "yes",
+			"ipp" => 50,
+			"type" => "message",
+			"key" => "last_message",
+			"order" => "DESC",
+			"sort1" => -3,
+		), $params);
+		$this->socket->set_method("GET");
+		$this->socket->query("/CMD_TICKET", $params);
+		$result = json\decode($this->socket->fetch_body());
+		if ((isset($result["error"]) and $result["error"]) or !isset($result["messages"])) {
+			$FailedException = new FailedException();
+			$FailedException->setResponse($result);
+			throw $FailedException;
 		}
-		if ($tickets) {
-			usort($tickets, function($a, $b) {
-				return $b["time"] - $a["time"];
-			});
-		}
-		return $tickets;
+		unset($result["messages"]["info"]);
+		return $result["messages"];
 	}
 	protected function getCurrentBackups(): array {
 		$this->reload();

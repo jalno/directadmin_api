@@ -1,6 +1,8 @@
 <?php
 namespace packages\directadmin_api;
-use packages\base\{date, IO\file, log};
+
+use packages\base\{Date, IO\File, Log};
+
 class Accounts {
 	private $api;
 	private $socket;
@@ -159,18 +161,22 @@ class Accounts {
 	 * @param string[]|null $what "domain", "subdomain", "ftp", "ftpsettings", "database", "database_data", "email", "email_data", "emailsettings", "vacation", "autoresponder", "list", "forwarder"
 	 */
 	public function backup(array $users, int $timeout = 1200, ?array $location = array(), ?array $what = []) {
-		$files = $this->backups();
-		$userBackups = [];
-		$result = [];
-		foreach ($users as $user) {
-			$userBackups[$user] = [];
-			foreach ($files as $file) {
-				$basename = substr($file, strrpos($file, "/") + 1);
-				if (strpos($basename, $user) !== false) {
-					$userBackups[$user][] = $file;
-				}
-			}
+		
+		$log = Log::getInstance();
+
+		$apiAccount = $this->api->getAccount();
+
+		$log->info("get system last message");
+		$tickets = $apiAccount->getTickets(array(
+			"ipp" => 1,
+		));
+		$lastTicket = reset($tickets);
+		if ($lastTicket) {
+			$log->reply("sent in: ", Date::format("Y/m/d H-i-s", $lastTicket["last_message"]));
+		} else {
+			$log->reply("NotFound");
 		}
+
 		$params = array(
 			"action" => "create",
 			"who" => "selected",
@@ -192,6 +198,7 @@ class Accounts {
 			$params["where"] = "local";
 			$params["local_path"] = "/home/admin/admin_backups";
 		}
+
 		if ($what) {
 			$params['what'] = "select";
 			foreach($what as $x => $option) {
@@ -200,70 +207,131 @@ class Accounts {
 		} else {
 			$params['what'] = "all";
 		}
+
 		foreach ($users as $key => $user) {
 			$params["select" . $key] = $user;
 		}
+
 		$this->socket->set_method("POST");
+
 		$query = "";
 		switch ($this->api->getLevel()) {
 			case(API::Admin): $query = "CMD_API_ADMIN_BACKUP";break;
 			case(API::Reseller): $query = "CMD_API_USER_BACKUP";break;
 		}
+
 		$this->socket->query("/" . $query, $params);
 		$results = $this->socket->fetch_parsed_body();
+
 		if (!$results) {
 			$exception = new FailedException();
 			$exception->setRequest($params);
 			throw $exception;
 		}
+
 		if (isset($results["error"]) and $results["error"] == 1) {
 			$exception = new FailedException();
 			$exception->setRequest($params);
 			$exception->setResponse($results);
 			throw $exception;
 		}
+
 		$startAt = date::time();
-		$countUsers = count($users);
-		while (count($result) != $countUsers and ($timeout == 0 or date::time() - $startAt < $timeout)) {
-			if ($params["where"] == "local") {
-				$files = $this->backups();
-				foreach ($users as $user) {
-					if (!isset($result[$user])) {
-						foreach ($files as $file) {
-							$basename = substr($file, strrpos($file, "/") + 1);
-							if (strpos($basename, $user) !== false && !in_array($file, $userBackups[$user])) {
-								$result[$user] = $file;
+
+		$checkUsersInTicket = function(string $message) use (&$users): bool {
+			$foundedUsers = 0;
+			foreach ($users as $user) {
+				if (stripos($message, "User {$user} has been backed up") !== false or stripos($message, "{$user}.tar.gz") !== false) {
+					$foundedUsers++;
+				}
+			}
+			return $foundedUsers == count($users);
+		};
+		while ($timeout == 0 or date::time() - $startAt < $timeout) {
+			$log->info("get system tickets for checking new ticket");
+
+			$tickets = $apiAccount->getTickets();
+			foreach ($tickets as $ticket) {
+				if (!$lastTicket or $ticket["last_message"] > $lastTicket["last_message"]) {
+					$lastTicket = $ticket;
+					$log->info("the new ticket found, sent in: ", Date::format("Y/m/d H-i-s", $ticket["last_message"]));
+					$subject = strtolower($ticket["subject"]);
+					if (
+						substr($subject, 0, strlen("your backups are now ready")) == "your backups are now ready" and
+						strtolower($ticket["new"]) == "yes"
+					) {
+						$content = $apiAccount->getTicket($ticket["message"]);
+						if ($content) {
+							if ($checkUsersInTicket($content["message"])) {
+								$log->reply("found ticket that was looking for");
+								break 2;
+							} else {
+								$log->reply("Sorry. Maybe next time");
 							}
+						} else {
+							$log->reply()->warn("Unable to get message content");
+						}
+					} else if (
+						substr($subject, 0, strlen("an error occurred during the backup")) == "an error occurred during the backup" and
+						strtolower($ticket["new"]) == "yes"
+					) {
+						$log->reply("Oh it's seems an error occurred, Let's check it");
+						$content = $apiAccount->getTicket($ticket["message"]);
+						if ($content) {
+							if ($checkUsersInTicket($content["message"])) {
+								$log->reply()->fatal("Sorry.., the create backup process has faield");
+								$e = new FailedException();
+								$e->setRequest($params);
+								$e->setResponse($results);
+								throw $e;
+							} else {
+								$log->reply("Be Happy, It's not our request");
+							}
+						} else {
+							$log->reply()->warn("Unable to get message content");
 						}
 					}
-				}
-			} else if ($params["where"] == "ftp") {
-				$file = new file\ftp();
-				$file->directory = $location["directory"];
-				$file->hostname = $location["hostname"];
-				$file->port = $location["port"];
-				$file->username = $location["username"];
-				$file->password = $location["password"];
-				$files = $file->getDirectory()->files();
-				$found = false;
-				foreach ($files as $f) {
-					foreach ($users as $user) {
-						if (isset($result[$user])) {
-							continue;
-						}
-						if (preg_match("/^(?:user|reseller|admin)\.(?:\w+)\.(\w+)\.tar\.gz$/", $f->basename, $matches)) {
-							if ($matches[1] == $user) {
-								$result[$user] = $f;
-								$found = true;
-							}
-						}
-					}
-				}
-				if (!$found) {
-					$file->getDriver()->close();
 				}
 			}
 			sleep(1);
+		}
+		$result = array();
+		if ($params["where"] == "local") {
+			$files = $this->backups();
+			foreach ($users as $user) {
+				foreach ($files as $file) {
+					$basename = substr($file, strrpos($file, "/") + 1);
+					if (stripos($basename, "{$user}.tar.gz") !== false) {
+						$result[$user] = $file;
+					}
+				}
+			}
+
+		} else {
+			$file = new file\FTP();
+			$file->directory = $location["directory"];
+			$file->hostname = $location["hostname"];
+			$file->port = $location["port"];
+			$file->username = $location["username"];
+			$file->password = $location["password"];
+			$files = $file->getDirectory()->files();
+			$found = false;
+			foreach ($files as $f) {
+				foreach ($users as $user) {
+					if (isset($result[$user])) {
+						continue;
+					}
+					if (preg_match("/^(?:user|reseller|admin)\.(?:\w+)\.(\w+)\.tar\.gz$/", $f->basename, $matches)) {
+						if ($matches[1] == $user) {
+							$result[$user] = $f;
+							$found = true;
+						}
+					}
+				}
+			}
+			if (!$found) {
+				$file->getDriver()->close();
+			}
 		}
 		return $result;
 	}
