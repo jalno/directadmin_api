@@ -1,7 +1,7 @@
 <?php
 namespace packages\directadmin_api;
 
-use packages\base\{Date, IO\File, Log};
+use packages\base\{Date, Exception, IO\File, Log};
 
 class Accounts {
 	private $api;
@@ -335,100 +335,154 @@ class Accounts {
 		}
 		return $result;
 	}
+
+	/**
+	 * @param string[] $files
+	 * @param string $ip
+	 * @param int $timeout
+	 * @param array|null $location "where"(string = ftp), "hostname"(string), "username"(string), "password"(string), "port"(int), "directory"(string), "secure" (ftps|ftp)
+	 */
 	public function restore(array $files, string $ip = null, int $timeout = 1200, array $location = array()) {
-		$log = log::getInstance();
-		if ($this->api->getLevel() == API::Admin) {
-			$log->info("init restore params");
-			$params = array(
-				"action" => "restore",
-				"who" => "selected",
-			);	
-			$basenames = array();
-			foreach($files as $file) {
-				$slashpos = strrpos($file, "/");
-				if ($slashpos !== false) {
-					$basenames[] = substr($file, strrpos($file, "/") + 1);
-				} else {
-					$basenames[] = $file;
-				}
-			}
-			if ($location) {
+		$log = Log::getInstance();
+
+		if ($this->api->getLevel() != API::Admin) {
+			$log->error("can not restore backup without non-admin level!");
+			return;
+		}
+		$apiAccount = $this->api->getAccount();
+
+		$log->info("get system last message");
+		$tickets = $apiAccount->getTickets(array(
+			"ipp" => 1,
+		));
+		$lastTicket = reset($tickets);
+		if ($lastTicket) {
+			$log->reply("sent in: ", Date::format("Y/m/d H-i-s", $lastTicket["last_message"]));
+		} else {
+			$log->reply("not found");
+		}
+		$startAt = Date::time();
+
+
+		$log->info("init restore params");
+		$params = array(
+			"action" => "restore",
+			"who" => "selected",
+		);
+		if ($location) {
+			if ($location["where"] == "ftp") {
 				$params["where"] = $location["where"];
-				if ($location["where"] == "ftp") {
-					$params["ftp_ip"] = $location["hostname"];
-					$params["ftp_username"] = $location["username"];
-					$params["ftp_password"] = $location["password"];
-					$params["ftp_port"] = $location["port"];
-					$params["ftp_path"] = $location["directory"];
-				} else {
-					throw new Exception("unknown location for restore backup");
-				}
+				$params["ftp_ip"] = $location["hostname"];
+				$params["ftp_username"] = $location["username"];
+				$params["ftp_password"] = $location["password"];
+				$params["ftp_port"] = $location["port"];
+				$params["ftp_path"] = $location["directory"];
 			} else {
-				$dir = "";
-				$params["where"] = "local";
-				foreach($files as $file) {
-					$slashpos = strrpos($file, "/");
-					if ($slashpos !== false) {
-						$fileDir = substr($file, 0, $slashpos);
-						if ($dir and $fileDir != $dir) {
-							throw new Exception("multiplte directories");
+				throw new Exception("unknown location for restore backup:" . $location["where"]);
+			}
+		} else {
+			$params["where"] = "local";
+
+			$commonDir = "";
+			foreach ($files as $file) {
+				$lastSlashPos = strrpos($file, "/");
+				if ($lastSlashPos !== false) {
+					$fileDir = substr($file, 0, $lastSlashPos);
+					if ($commonDir and $fileDir != $commonDir) {
+						throw new Exception("multiplte directories");
+					}
+					if (!$commonDir) {
+						$commonDir = $fileDir;
+					}
+				}
+			}
+			$params["local_path"] = $commonDir ? $commonDir : "/home/admin/admin_backups";
+		}
+		if ($ip) {
+			$params["ip_choice"] = "select";
+			$params["ip"] = $ip;
+		}
+
+		$basenames = array();
+		$length = count($files);
+		for ($x = 0; $x < $length; $x++) {
+			$lastSlashPos = strrpos($file, "/");
+			$basename = ($lastSlashPos !== false) ? substr($file, $lastSlashPos + 1) : $file;
+			$params["select{$x}"] = $basename;
+			$basenames[] = $basename;
+		}
+		$log->reply($params);
+
+		$log->info("try to restore");
+		$this->socket->set_method("POST");
+		$this->socket->query("/CMD_API_ADMIN_BACKUP", $params);
+		$result = $this->socket->fetch_parsed_body();
+		if (isset($result["error"]) and $result["error"] or empty($result)) {
+			$log->reply()->fatal("failed");
+			$FailedExeption = new FailedException();
+			$FailedExeption->setRequest($params);
+			$FailedExeption->setResponse($result);
+			throw $FailedExeption;
+		}
+		$log->reply("no problem");
+
+		$checkUsersInTicket = function(string $message) use (&$basenames): bool {
+			$foundedUsers = 0;
+			foreach ($basenames as $basename) {
+				if (stripos($message, "User {$basename} has been restored") !== false or stripos($message, $basename) !== false) {
+					$foundedUsers++;
+				}
+			}
+			return $foundedUsers == count($users);
+		};
+		$log->info("get system tickets for checking new ticket, timeout: {$timeout} sec");
+		while ($timeout === 0 or Date::time() - $startAt < $timeout) {
+			$log->info("get tickets...");
+			$tickets = $apiAccount->getTickets();
+			$log->reply("done, proccess them...");
+			foreach ($tickets as $ticket) {
+				if (!$lastTicket or $ticket["last_message"] > $lastTicket["last_message"]) {
+					$lastTicket = $ticket;
+					$log->info("the new ticket found, sent in: ", Date::format("Y/m/d H-i-s", $ticket["last_message"]));
+					$subject = trim(strtolower($ticket["subject"]));
+					if (
+						substr($subject, 0, strlen("your user files have been restored")) == "your user files have been restored" and
+						strtolower($ticket["new"]) == "yes"
+					) {
+						$content = $apiAccount->getTicket($ticket["message"]);
+						if ($content) {
+							if ($checkUsersInTicket($content["message"])) {
+								$log->reply("found ticket that was looking for");
+								break 2;
+							} else {
+								$log->reply("sorry. maybe next time");
+							}
+						} else {
+							$log->reply()->warn("unable to get message content");
 						}
-						$dir = $fileDir;
-					}
-				}
-				$params["local_path"] = $dir ? $dir : "/home/admin/admin_backups";
-			}
-			if ($ip) {
-				$params["ip_choice"] = "select";
-				$params["ip"] = $ip;
-			}
-			foreach($basenames as $key => $file) {
-				$params["select" . $key] = $file;
-			}
-			$log->reply($params);
-			$log->info("try to restore");
-			$this->socket->set_method("POST");
-			$this->socket->query("/CMD_API_ADMIN_BACKUP", $params);
-			$result = $this->socket->fetch_parsed_body();
-			if(isset($result["error"]) and $result["error"] or empty($result)){
-				$log->reply()->fatal("failed");
-				$FailedExeption = new FailedException();
-				$FailedExeption->setRequest($params);
-				$FailedExeption->setResponse($result);
-				throw $FailedExeption;
-			}
-			$log->reply("no problem");
-			$log->info("looking files for get username");
-			$startAt = date::time();
-			$founds = [];
-			$usernames = [];
-			foreach($basenames as $file) {
-				if (preg_match("/\.(\w+)\.tar\.gz$/", $file, $matches)) {
-					$usernames[] = $matches[1];
-				}
-			}
-			$userCounts = count($usernames);
-			$log->reply($userCounts, "found");
-			$log->info("looking in accouns for needed usernames");
-			while(($timeout == 0 or date::time() - $startAt < $timeout) and count($founds) != $userCounts) {
-				$all = $this->all();
-				$log->info(count($all), "user found, check it on my usernames");
-				foreach($usernames as $user) {
-					$log->info("looking for ", $user);
-					if (in_array($user, $founds)) {
-						$log->reply("oh, i found it before");
-						continue;
-					}
-					foreach($all as $account) {
-						if ($account->getUsername() == $user) {
-							$log->reply("found it, save it on mind");
-							$founds[] = $user;
+					} else if (
+						substr($subject, 0, strlen("an error occurred during the restore")) == "an error occurred during the restore" and
+						strtolower($ticket["new"]) == "yes"
+					) {
+						$log->reply("oh it's seems an error occurred, let's check it");
+						$content = $apiAccount->getTicket($ticket["message"]);
+						if ($content) {
+							if ($checkUsersInTicket($content["message"])) {
+								$log->reply()->fatal("sorry.., the create backup process has faield");
+								$e = new FailedException();
+								$e->setRequest($params);
+								$e->setResponse($results);
+								throw $e;
+							} else {
+								$log->reply("be happy, It's not our request");
+							}
+						} else {
+							$log->reply()->warn("unable to get message content");
 						}
 					}
 				}
-				sleep(1);
 			}
-			return $founds;
+			sleep(1);
 		}
 	}
 	public function transferFrom(string $host, string $username, int $level, string $password, string $domain, string $localIP, int $port = 2222, bool $ssl = false) {
