@@ -4,19 +4,28 @@ namespace packages\directadmin_api;
 use packages\base\{Date, Exception, IO\File, Log};
 
 class Accounts {
+
+	/** @var API */
 	private $api;
+	/** @var HTTPSocket */
 	private $socket;
+
 	public function __construct(API $api) {
 		$this->api = $api;
 		$this->socket = $this->api->getSocket();
 	}
-	public function all() {
+	/**
+	 * @return array<Account>|array<null>
+	 * @throws FailedException
+	 * @throws NotFoundAccountException
+	 */
+	public function all(): array {
 		$accounts = [];
 		$this->socket->set_method("GET");
 		$this->socket->query("/CMD_API_ALL_USER_USAGE");
 		$rawBody = $this->socket->fetch_body();
-		$results = $this->socket->fetch_parsed_body();
-		if(isset($results["error"]) and $results["error"] == 1){
+		$result = $this->socket->fetch_parsed_body();
+		if(isset($result["error"]) and $result["error"] == 1){
 			throw new FailedException($result);
 		}
 		$lines = explode("\n", $rawBody);
@@ -27,7 +36,11 @@ class Accounts {
 		}
 		return $accounts;
 	}
-	public function summeryList() {
+	/**
+	 * @return array<Account>|array<null>
+	 * @throws FailedException
+	 */
+	public function summeryList(): array {
 		$accounts = [];
 		$this->socket->set_method("GET");
 		$this->socket->query("/CMD_API_ALL_USER_USAGE");
@@ -75,13 +88,19 @@ class Accounts {
 		}
 		return $accounts;
 	}
-	public function byUsername(string $username) {
+	/**
+	 * @param string $username
+	 * @return Account|null
+	 * @throws FailedException
+	 * @throws NotFoundAccountException
+	 */
+	public function byUsername(string $username): ?Account {
 		$this->socket->set_method("GET");
 		$this->socket->query("/CMD_API_ALL_USER_USAGE");
 		$rawBody = $this->socket->fetch_body();
 		if (stripos($rawBody, "error") !== false) {
-			$results = $this->socket->fetch_parsed_body();
-			if(isset($results["error"]) and $results["error"] == 1){
+			$result = $this->socket->fetch_parsed_body();
+			if(isset($result["error"]) and $result["error"] == 1){
 				throw new FailedException($result);
 			}
 		}
@@ -92,14 +111,23 @@ class Accounts {
 				return Account::importByUsername($this->api, $username);
 			}
 		}
+
+		return null;
 	}
-	public function byDomain(string $domain) {
+	
+	/**
+	 * @param string $domain
+	 * @return Account|null
+	 * @throws FailedException
+	 * @throws NotFoundAccountException
+	 */
+	public function byDomain(string $domain): ?Account {
 		$this->socket->set_method("GET");
 		$this->socket->query("/CMD_API_ALL_USER_USAGE");
 		$rawBody = $this->socket->fetch_body();
 		if (stripos($rawBody, "error") !== false) {
-			$results = $this->socket->fetch_parsed_body();
-			if(isset($results["error"]) and $results["error"] == 1){
+			$result = $this->socket->fetch_parsed_body();
+			if(isset($result["error"]) and $result["error"] == 1){
 				throw new FailedException($result);
 			}
 		}
@@ -122,33 +150,40 @@ class Accounts {
 
 			}
 		}
+
+		return null;
 	}
-	public function backups() {
+
+	/**
+	 * @return array<string>|array<null>
+	 * @throws FailedException
+	 */
+	public function backups(): array {
 		$files = [];
 		if ($this->api->getLevel() == API::Admin) {
 			$this->socket->set_method("GET");
 			$this->socket->query("/CMD_API_ADMIN_BACKUP");
 			$rawBody = $this->socket->fetch_body();
-			$results = $this->socket->fetch_parsed_body();
-			if(isset($results["error"]) and $results["error"] == 1){
+			$result = $this->socket->fetch_parsed_body();
+			if(isset($result["error"]) and $result["error"] == 1){
 				throw new FailedException($result);
 			}
-			foreach($results as $key => $value) {
+			foreach($result as $key => $value) {
 				if (substr($key, 0, 4) == "file") {
-					$files[] = $results["location"] . "/" . $value;
+					$files[] = $result["location"] . "/" . $value;
 				}
 			}
 		} else if ($this->api->getLevel() == API::Reseller) {
 			$this->socket->set_method("GET");
 			$this->socket->query("/CMD_API_USER_BACKUP");
 			$rawBody = $this->socket->fetch_body();
-			$results = $this->socket->fetch_parsed_body();
-			if(isset($results["error"]) and $results["error"] == 1){
+			$result = $this->socket->fetch_parsed_body();
+			if(isset($result["error"]) and $result["error"] == 1){
 				throw new FailedException($result);
 			}
-			foreach($results as $key => $value) {
+			foreach($result as $key => $value) {
 				if (substr($key, 0, 4) == "file") {
-					$files[] = $results["USER_BACKUPS_DIR"] . "/" . $value;
+					$files[] = $result["USER_BACKUPS_DIR"] . "/" . $value;
 				}
 			}
 		}
@@ -159,8 +194,10 @@ class Accounts {
 	 * @param int $timeout
 	 * @param array|null $location "where"(string = ftp), "hostname"(string), "username"(string), "password"(string), "port"(int), "directory"(string), "secure" (ftps|ftp)
 	 * @param string[]|null $what "domain", "subdomain", "ftp", "ftpsettings", "database", "database_data", "email", "email_data", "emailsettings", "vacation", "autoresponder", "list", "forwarder"
+	 * @return array<string,string>
+	 * @throws FailedException
 	 */
-	public function backup(array $users, int $timeout = 1200, ?array $location = array(), ?array $what = []) {
+	public function backup(array $users, int $timeout = 1200, ?array $location = array(), ?array $what = []): array {
 		
 		$log = Log::getInstance();
 
@@ -341,8 +378,11 @@ class Accounts {
 	 * @param string $ip
 	 * @param int $timeout
 	 * @param array|null $location "where"(string = ftp), "hostname"(string), "username"(string), "password"(string), "port"(int), "directory"(string), "secure" (ftps|ftp)
+	 * @return void
+	 * @throws Exception
+	 * @throws FailedException
 	 */
-	public function restore(array $files, string $ip = null, int $timeout = 1200, array $location = array()) {
+	public function restore(array $files, string $ip = null, int $timeout = 1200, array $location = array()): void {
 		$log = Log::getInstance();
 
 		if ($this->api->getLevel() != API::Admin) {
@@ -433,7 +473,7 @@ class Accounts {
 					$foundedUsers++;
 				}
 			}
-			return $foundedUsers == count($users);
+			return $foundedUsers == count($foundedUsers);
 		};
 		$log->info("get system tickets for checking new ticket, timeout: {$timeout} sec");
 		while ($timeout === 0 or Date::time() - $startAt < $timeout) {
@@ -468,10 +508,10 @@ class Accounts {
 						$content = $apiAccount->getTicket($ticket["message"]);
 						if ($content) {
 							if ($checkUsersInTicket($content["message"])) {
-								$log->reply()->fatal("sorry.., the create backup process has faield");
+								$log->reply()->fatal("sorry.., the restore backup process has faield");
 								$e = new FailedException();
 								$e->setRequest($params);
-								$e->setResponse($results);
+								$e->setResponse($content);
 								throw $e;
 							} else {
 								$log->reply("be happy, It's not our request");
@@ -485,6 +525,19 @@ class Accounts {
 			sleep(1);
 		}
 	}
+
+	/**
+	 * @param string $host
+	 * @param string $username
+	 * @param int $level
+	 * @param string $password
+	 * @param string $domain
+	 * @param string $localIO
+	 * @param int $port
+	 * @param bool $ssl
+	 * @return Account|null
+	 * @throws FailedException
+	 */
 	public function transferFrom(string $host, string $username, int $level, string $password, string $domain, string $localIP, int $port = 2222, bool $ssl = false) {
 		$other = new API($host, $port, $ssl);
 		$other->setUsername($username, $level);
@@ -513,6 +566,7 @@ class Accounts {
 	 * 
 	 * @param string[] $users
 	 * @return void
+	 * @throws FailedException
 	 */
 	public function delete(array $users): void {
 		if (empty($users)) {
@@ -541,6 +595,13 @@ class Accounts {
 			throw $exception;
 		}
 	}
+
+	/**
+	 * @param string $username
+	 * @param string $domain
+	 * @param string $email
+	 * @return Account
+	 */
 	public function getNewAccount(string $username, string $domain, string $email): Account {
 		return new Account($this->api, $username, $domain, $email);
 	}
