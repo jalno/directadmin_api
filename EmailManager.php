@@ -471,11 +471,12 @@ class EmailManager {
 		$impersonate = $this->preQuery($username, $level); // $username, $level passed by refrence
 		$socket = $this->api->getSocket();
 		$socket->set_method("GET");
-		$socket->query("/CMD_API_EMAIL_AUTORESPONDER_MODIFY", array(
+		$params = array(
 			"json" => "yes",
 			"domain" => $data["domain"],
 			"user" => $data["username"],
-		));
+		);
+		$socket->query("/CMD_API_EMAIL_AUTORESPONDER_MODIFY", $params);
 		$result = $socket->fetch_parsed_body();
 		if ($impersonate) {
 			$this->api->setUsername($username, $level, false);

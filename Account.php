@@ -1,7 +1,7 @@
 <?php
 namespace packages\directadmin_api;
 
-use packages\base\{date, log, utility, json};
+use packages\base\{date, log, utility, json, View\Error};
 
 class Account {
 	const unlimited = -1;
@@ -9,11 +9,24 @@ class Account {
 	const skinDefault = "default";
 	const skinPowerUser = "power_user";
 	const skinEvolution = "evolution";
+
+	/**
+	 * @param API $api
+	 * @param string $username
+	 * @throws FailedException
+	 * @throws NotFoundAccountException
+	 */
 	public static function importByUsername(API $api, string $username) {
-		$account = new static($api, $username);
+		$account = new self($api, $username);
 		$account->reload();
 		return $account;
 	}
+	
+	/**
+	 * @param string $str
+	 * @param int $maxlength default is 8
+	 * @return string
+	 */
 	public static function createUsername(string $str, int $maxlength = 8): string {
 		$str = $newStr = strtolower($str);
 		$continue = true;
@@ -26,51 +39,107 @@ class Account {
 		$str = substr($str, 0, $maxlength-3).rand(100, 999);
 		return $str;
 	}
+
+	/** @var API */
 	protected $api;
+
+	/** @var HTTPSocket */
 	protected $socket;
+	/** @var string|null */
 	protected $domain;
+	/** @var string */
 	protected $username;
+	/** @var string|null */
 	protected $password;
+	/** @var string|null */
 	protected $email;
+	/** @var int|string|null */
 	protected $quota;
+	/** @var int */
 	protected $maxQuota = self::unlimited;
+	/** @var int|null */
 	protected $bandwidth;
+	/** @var int */
 	protected $maxBandwidth = self::unlimited;
+	/** @var int|null */
 	protected $ftps;
+	/** @var int */
 	protected $maxFtps = self::unlimited;
+	/** @var int|null */
 	protected $emails;
+	/** @var int */
 	protected $maxEmails = self::unlimited;
+	/** @var int|null */
 	protected $mailingLists;
+	/** @var int */
 	protected $maxMailingLists = self::unlimited;
+	/** @var int|null */
 	protected $sqls;
+	/** @var int */
 	protected $maxSqls = self::unlimited;
+	/** @var int|null */
 	protected $subDomains;
+	/** @var int */
 	protected $maxSubDomains = self::unlimited;
+	/** @var int|null */
 	protected $parkDomains;
+	/** @var int */
 	protected $maxParkDomains = self::unlimited;
+	/** @var int|null */
 	protected $addonDomains;
+	/** @var int */
 	protected $maxAddonDomains = self::unlimited;
+	/** @var bool */
 	protected $php = true;
+	/** @var bool */
 	protected $reseller = false;
+	/** @var int|null */
 	protected $ip;
+	/** @var bool */
 	protected $anonymousFtp = false;
+	/** @var bool */
 	protected $cgi = false;
+	/** @var bool */
 	protected $spam = true;
+	/** @var bool */
 	protected $cron = true;
+	/** @var bool */
+	protected $ssh = false;
+	/** @var bool */
 	protected $ssl = true;
+	/** @var bool */
 	protected $sysinfo = false;
+	/** @var bool */
 	protected $shell = false;
+	/** @var int */
 	protected $skin = self::skinEnhanced;
+	/** @var bool */
 	protected $notify = true;
+	/** @var bool */
 	protected $dnscontrol = false;
+	/** @var int|null */
 	protected $maxEmailForwarders = self::unlimited;
+	/** @var int|null */
 	protected $emailForwarders;
+	/** @var int|null */
 	protected $maxEmailResponders = self::unlimited;
+	/** @var int|null */
 	protected $emailResponders;
+	/** @var array<string> */
 	protected $nameservers = [];
+	/** @var Account|null */
 	protected $parent;
+	/** @var DatabaseManager|null */
 	protected $databaseManager;
+	/** @var DomainPointerManager|null */
 	protected $domainPointerManager;
+
+	/** @var string */
+	protected $package;
+	/** @var bool */
+	protected $suspended = false;
+	/** @var string|null */
+	protected $creator;
 	
 	/** @var int|null unix timestamp */
 	protected $create_at;
@@ -96,6 +165,13 @@ class Account {
 			$this->email = $email;
 		}
 	}
+
+	/**
+	 * 
+	 * @return void
+	 * @throws FailedException
+	 * @throws NotFoundAccountException
+	 */
 	public function reload() {
 		$this->socket->set_method("GET");
 		$params = ["user" => $this->username];
@@ -184,6 +260,7 @@ class Account {
 		} else {
 			$query = "CMD_API_ACCOUNT_USER";
 		}
+		/** @var array<string,string> */
 		$params = array(
 			"action" => "create",
 			"add" => "Submit",
@@ -286,6 +363,7 @@ class Account {
 	}
 	public function delete() {
 		$this->socket->set_method("POST");
+		/** @var array<string,string> */
 		$params = array(
 			"confirmed" => "Confirm",
 			"delete" => "yes",
@@ -311,6 +389,7 @@ class Account {
 		}
 	}
 	public function restore(string $file, string $ip = null, int $timeout = 1200): Account {
+		/** @var array<string,string> */
 		$params = array(
 			"action" =>	"restore",
 			"domain" =>	$this->domain,
@@ -328,12 +407,15 @@ class Account {
 			"select8" => "ftp",
 			"select9" => "ftpsettings",
 		);
-		$params = array_merge($params, $detailsParam);
 		try {
 			$this->delete();
-		} catch (NotFoundAccountException $e) {
-			
-		}
+		} catch (NotFoundAccountException $e) {}
+
+		$tickets = $this->getTickets(array(
+			"ipp" => 1,
+		));
+		$lastTicket = reset($tickets);
+
 		$this->socket->set_method("POST");
 		$this->socket->query("/CMD_API_SITE_BACKUP", $params);
 		$result = $this->socket->fetch_parsed_body();
@@ -350,17 +432,37 @@ class Account {
 		}
 		$startAt = date::time();
 		$found = false;
-		$countTickets = count($this->getTickets());
+		$checkUserInTicket = function(string $message): bool {
+			return stripos($message, "User {$this->username} has been restored") !== false || stripos($message, $this->username) !== false;
+		};
 		while(($timeout == 0 or date::time() - $startAt < $timeout) and !$found) {
 			$tickets = $this->getTickets();
-			$newcountTickets = count($tickets);
-			if ($newcountTickets > $countTickets) {
-				$ticket = $tickets[0];
-				if (
-					strtolower($ticket["subject"]) == "your User files have been restored" and
-					strtolower($ticket["new"]) == "yes"
-				) {
-					$found = true;
+			foreach ($tickets as $ticket) {
+				if (!$lastTicket or $ticket["last_message"] > $lastTicket["last_message"]) {
+					$lastTicket = $ticket;
+					$subject = strtolower(trim($ticket["subject"]));
+					if (
+						substr($subject, 0, 34) == "your user files have been restored" and
+						strtolower($ticket["new"]) == "yes"
+					) {
+						$content = $this->getTicket($ticket["message"]);
+						if ($content and $checkUserInTicket($content["message"])) {
+							break 2;
+						}
+					} else if (
+						substr($subject, 0, 36) == "an error occurred during the restore" and
+						strtolower($ticket["new"]) == "yes"
+					) {
+						$content = $this->getTicket($ticket["message"]);
+						if ($content) {
+							if ($checkUserInTicket($content["message"])) {
+								$e = new FailedException();
+								$e->setRequest($params);
+								$e->setResponse($result);
+								throw $e;
+							}
+						}
+					}
 				}
 			}
 			sleep(2);
@@ -371,12 +473,13 @@ class Account {
 			$exception->setResponse($result);
 			throw $exception;
 		}
-		$account->reload();
-		return $account;
+		$this->reload();
+		return $this;
 	}
 	public function backup(int $timeout = 600) {
 		$log = log::getInstance();
 		$log->info("init backup params");
+		/** @var array<string,string> */
 		$params = array(
 			"action" => "backup",
 			"domain" => $this->domain,
@@ -488,9 +591,11 @@ class Account {
 			}
 		}
 		if (empty($backups)) {
-			$exception = new NotFoundBackupException();
-			$exception->setBackups($currentBackups);
-			$exception->setBackupRegexName($backupRegexName);
+			$exception = new Error();
+			$exception->setData(array(
+				"current" => $currentBackups,
+				"regex" => $backupRegexName,
+			));
 			throw $exception;
 		}
 		$backup = end($backups);
@@ -499,6 +604,7 @@ class Account {
 		return $path;
 	}
 	public function changePassword(string $password) {
+		/** @var array<string,string> */
 		$params = array(
 			"username" => $this->username,
 			"passwd" => $password,
@@ -534,6 +640,8 @@ class Account {
 		if (empty($modifiedData)) {
 			return;
 		}
+
+		/** @var array<string,string> */
 		$params = array(
 			"action" => "customize",
 			"user" => $this->username
@@ -716,6 +824,7 @@ class Account {
 		$this->reload();
 	}
 	public function suspend() {
+		/** @var array<string,string> */
 		$params = array(
 			"suspend" => "Suspend",
 			"select0" => $this->username,
@@ -736,6 +845,7 @@ class Account {
 		}
 	}
 	public function unsuspend() {
+		/** @var array<string,string> */
 		$params = array(
 			"suspend" => "Unsuspend",
 			"select0" => $this->username,
@@ -894,6 +1004,7 @@ class Account {
 		return $this->creator;
 	}
 	public function setCustomHTTP(string $config, string $domain) {
+		/** @var array<string,string> */
 		$params = array(
 			"domain" => $domain,
 			"config" => $config,
@@ -915,6 +1026,7 @@ class Account {
 		return $result;
 	}
 	public function getCustomHTTP(string $domain) {
+		/** @var array<string,string> */
 		$params = array(
 			"domain" => $domain,
 		);
@@ -922,8 +1034,8 @@ class Account {
 		$this->socket->query("/CMD_API_CUSTOM_HTTPD",$params);
 		$rawBody = $this->socket->fetch_body();
 		if (stripos($rawBody, "error") !== false) {
-			$results = $this->socket->fetch_parsed_body();
-			if(isset($results["error"]) and $results["error"] == 1){
+			$result = $this->socket->fetch_parsed_body();
+			if(isset($result["error"]) and $result["error"] == 1){
 				throw new FailedException($result);
 			}
 		}
@@ -1159,6 +1271,7 @@ class Account {
 
 		$socket = $this->api->getSocket();
 		try {
+			/** @var array<string,string> */
 			$params = array(
 				'action' => 'save',
 				'background' => 'auto',
@@ -1177,6 +1290,7 @@ class Account {
 				$FailedException->setResponse($result);
 				throw $FailedException;
 			}
+			/** @var array<string,string> */
 			$params = array(
 				'domain' => $this->domain,
 				'action' => 'save',
@@ -1206,7 +1320,7 @@ class Account {
 	/**
 	 * Get create date
 	 * 
-	 * @return int|null
+	 * @return int|string|null
 	 */
 	public function getCreateAt(): ?int {
 		return $this->create_at;
@@ -1242,6 +1356,7 @@ class Account {
 	 * @return array
 	 */
 	public function getTickets(?array $params = array()): array {
+		/** @var array<string,string> */
 		$params = array_replace(array(
 			"json" => "yes",
 			"ipp" => 50,
@@ -1263,6 +1378,7 @@ class Account {
 	}
 	protected function getCurrentBackups(): array {
 		$this->reload();
+		/** @var array<string,string> */
 		$params = array(
 			"domain" => $this->domain,
 		);
