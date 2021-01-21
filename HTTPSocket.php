@@ -262,7 +262,7 @@ class HTTPSocket {
 
 		if( !($this->result = curl_exec($ch)) )
 		{
-			$this->error[] .= curl_error($ch);
+			$this->error[] = curl_error($ch);
 			$OK = FALSE;
 		}
 
