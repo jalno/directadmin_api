@@ -446,8 +446,9 @@ class Accounts {
 		$basenames = array();
 		$length = count($files);
 		for ($x = 0; $x < $length; $x++) {
+			$file = $files[0];
 			$lastSlashPos = strrpos($file, "/");
-			$basename = ($lastSlashPos !== false) ? substr($file, $lastSlashPos + 1) : $file;
+			$basename = ($lastSlashPos !== false ? substr($file, $lastSlashPos + 1) : $file);
 			$params["select{$x}"] = $basename;
 			$basenames[] = $basename;
 		}
