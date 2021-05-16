@@ -206,7 +206,7 @@ class Account {
 			$exception->setResponse($usage);
 			throw $exception;
 		}
-		if ($this->username == "admin" and !isset($result["domain"])) {
+		if (!isset($result["domain"])) {
 			$result["domain"] = "";
 		}
 		$oldUsername = $this->username;
