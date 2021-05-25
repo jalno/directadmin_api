@@ -1367,7 +1367,11 @@ class Account {
 		), $params);
 		$this->socket->set_method("GET");
 		$this->socket->query("/CMD_TICKET", $params);
-		$result = json\decode($this->socket->fetch_body());
+		try {
+			$result = json\decode($this->socket->fetch_body());
+		} catch (json\JsonException $e) {
+			return [];
+		}
 		if ((isset($result["error"]) and $result["error"]) or !isset($result["messages"])) {
 			$FailedException = new FailedException();
 			$FailedException->setResponse($result);
