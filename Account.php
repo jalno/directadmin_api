@@ -1,7 +1,7 @@
 <?php
 namespace packages\directadmin_api;
 
-use packages\base\{date, log, utility, json, View\Error};
+use packages\base\{Date, log, utility, json, View\Error};
 
 class Account {
 	const unlimited = -1;
@@ -519,7 +519,7 @@ class Account {
 		));
 		$lastTicket = reset($tickets);
 		if ($lastTicket) {
-			$log->reply("sent in: ", Date::format("Y/m/d H-i-s", $lastTicket["last_message"]));
+			$log->reply("sent in: ", Date\Gregorian::format("Y/m/d H-i-s", $lastTicket["last_message"]));
 		} else {
 			$log->reply("NotFound");
 		}
@@ -573,9 +573,9 @@ class Account {
 			sleep(2);
 		}
 		$log->info("looking in backup files for found them");
-		$month = date::format("M");
-		$year = date::format("Y");
-		$day = date::format("j");
+		$month = Date\Gregorian::format("M");
+		$year = Date\Gregorian::format("Y");
+		$day = Date\Gregorian::format("j");
 		$backupRegexName = "/^backup\-{$month}\-{$day}\-{$year}(\-(\d+))?\.tar\.gz$/i";
 		$log->info("the backup name must throw in ", $backupRegexName, " regex");
 		$backups = array();
