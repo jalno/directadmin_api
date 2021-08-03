@@ -209,7 +209,7 @@ class Accounts {
 		));
 		$lastTicket = reset($tickets);
 		if ($lastTicket) {
-			$log->reply("sent in: ", Date::format("Y/m/d H-i-s", $lastTicket["last_message"]));
+			$log->reply("sent in: ", Date\Gregorian::format("Y/m/d H-i-s", $lastTicket["last_message"]));
 		} else {
 			$log->reply("NotFound");
 		}
@@ -291,7 +291,7 @@ class Accounts {
 			foreach ($tickets as $ticket) {
 				if (!$lastTicket or $ticket["last_message"] > $lastTicket["last_message"]) {
 					$lastTicket = $ticket;
-					$log->info("the new ticket found, sent in: ", Date::format("Y/m/d H-i-s", $ticket["last_message"]));
+					$log->info("the new ticket found, sent in: ", Date\Gregorian::format("Y/m/d H-i-s", $ticket["last_message"]));
 					$subject = strtolower($ticket["subject"]);
 					if (
 						substr($subject, 0, strlen("your backups are now ready")) == "your backups are now ready" and
@@ -397,7 +397,7 @@ class Accounts {
 		));
 		$lastTicket = reset($tickets);
 		if ($lastTicket) {
-			$log->reply("sent in: ", Date::format("Y/m/d H-i-s", $lastTicket["last_message"]));
+			$log->reply("sent in: ", Date\Gregorian::format("Y/m/d H-i-s", $lastTicket["last_message"]));
 		} else {
 			$log->reply("not found");
 		}
@@ -484,7 +484,7 @@ class Accounts {
 			foreach ($tickets as $ticket) {
 				if (!$lastTicket or $ticket["last_message"] > $lastTicket["last_message"]) {
 					$lastTicket = $ticket;
-					$log->info("the new ticket found, sent in: ", Date::format("Y/m/d H-i-s", $ticket["last_message"]));
+					$log->info("the new ticket found, sent in: ", Date\Gregorian::format("Y/m/d H-i-s", $ticket["last_message"]));
 					$subject = trim(strtolower($ticket["subject"]));
 					if (
 						substr($subject, 0, strlen("your user files have been restored")) == "your user files have been restored" and
