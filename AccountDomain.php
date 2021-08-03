@@ -1,58 +1,19 @@
 <?php
 namespace packages\directadmin_api;
+
 class AccountDomain {	
-	private $api;
-	private $account;
-
-	/**
-	 * @var string
-	 */
-	private $domain;
-
-	/**
-	 * @var bool
-	 */
-	private $active;
-
-	/**
-	 * @var bool
-	 */
-	private $default;
-
-	/**
-	 * @var bool
-	 */
-	private $localMail;
-
-	/**
-	 * @var bool
-	 */
-	private $cgi;
-
-	/**
-	 * @var bool
-	 */
-	private $openBasedir;
-
-	/**
-	 * @var bool
-	 */
-	private $php;
-
-	/**
-	 * @var bool
-	 */
-	private $safemode;
-
-	/**
-	 * @var bool
-	 */
-	private $ssl;
-
-	/**
-	 * @var bool
-	 */
-	private $suspended;
+	private API $api;
+	private Account $account;
+	private string $domain;
+	private bool $active = false;
+	private bool $default = false;
+	private bool $localMail = false;
+	private bool $cgi = false;
+	private bool $openBasedir = false;
+	private bool $php = false;
+	private bool $safemode = false;
+	private bool $ssl = false;
+	private bool $suspended = false;
 
 
 	public function __construct(Account $account, string $domain) {
@@ -61,7 +22,7 @@ class AccountDomain {
 		$this->domain = $domain;
 	}
 
-	public function modify() {
+	public function modify(): void {
 		$username = $this->api->getUsername();
 		$accountUsername = $this->account->getUsername();
 		$impersonate = $username != $accountUsername;
@@ -95,10 +56,11 @@ class AccountDomain {
 			throw $FailedException;
 		}
 	}
+
 	/**
 	 * @param string $mode cab be one of ["directory", "symlink"]
 	 */
-	public function changePrivateHTMLPolicy(string $mode) {
+	public function changePrivateHTMLPolicy(string $mode): void {
 		$username = $this->api->getUsername();
 		$accountUsername = $this->account->getUsername();
 		$impersonate = $username != $accountUsername;
@@ -130,185 +92,83 @@ class AccountDomain {
 	}
 	
 
-	/**
-	 * Get the value of domain
-	 */ 
-	public function getDomain() {
+	public function getDomain(): string {
 		return $this->domain;
 	}
 
-	/**
-	 * Set the value of domain
-	 *
-	 * @param  string  $domain
-	 */ 
-	public function setDomain(string $domain) {
+	public function setDomain(string $domain): void {
 		$this->domain = $domain;
 	}
 
-	/**
-	 * Get the value of active
-	 *
-	 * @return  bool
-	 */ 
-	public function getActive() {
+	public function getActive(): bool {
 		return $this->active;
 	}
 
-	/**
-	 * Set the value of active
-	 *
-	 * @param  bool  $active
-	 */ 
-	public function setActive(bool $active) {
+	public function setActive(bool $active): void {
 		$this->active = $active;
 	}
 
-	/**
-	 * Get the value of default
-	 *
-	 * @return  bool
-	 */ 
-	public function getDefault() {
+	public function getDefault(): bool {
 		return $this->default;
 	}
 
-	/**
-	 * Set the value of default
-	 *
-	 * @param  bool  $default
-	 */ 
-	public function setDefault(bool $default) {
+	public function setDefault(bool $default): void {
 		$this->default = $default;
 	}
 
-	/**
-	 * Get the value of localMail
-	 *
-	 * @return  bool
-	 */ 
-	public function getLocalMail() {
+	public function getLocalMail(): bool {
 		return $this->localMail;
 	}
 
-	/**
-	 * Set the value of localMail
-	 *
-	 * @param  bool  $localMail
-	 */ 
-	public function setLocalMail(bool $localMail) {
+	public function setLocalMail(bool $localMail): void {
 		$this->localMail = $localMail;
 	}
 
-	/**
-	 * Get the value of cgi
-	 *
-	 * @return  bool
-	 */ 
-	public function getCGI() {
+	public function getCGI(): bool {
 		return $this->cgi;
 	}
 
-	/**
-	 * Set the value of cgi
-	 *
-	 * @param  bool  $cgi
-	 */ 
-	public function setCGI(bool $cgi) {
+	public function setCGI(bool $cgi): void {
 		$this->cgi = $cgi;
 	}
 
-	/**
-	 * Get the value of openBasedir
-	 *
-	 * @return  bool
-	 */ 
-	public function getOpenBasedir() {
+	public function getOpenBasedir(): bool {
 		return $this->openBasedir;
 	}
 
-	/**
-	 * Set the value of openBasedir
-	 *
-	 * @param  bool  $openBasedir
-	 */ 
-	public function setOpenBasedir(bool $openBasedir) {
+	public function setOpenBasedir(bool $openBasedir): void {
 		$this->openBasedir = $openBasedir;
 	}
 
-	/**
-	 * Get the value of php
-	 *
-	 * @return  bool
-	 */ 
-	public function getPHP() {
+	public function getPHP(): bool {
 		return $this->php;
 	}
 
-	/**
-	 * Set the value of php
-	 *
-	 * @param  bool  $php
-	 */ 
-	public function setPHP(bool $php) {
+	public function setPHP(bool $php): void {
 		$this->php = $php;
 	}
 
-	/**
-	 * Get the value of safemode
-	 *
-	 * @return  bool
-	 */ 
-	public function getSafeMode() {
+	public function getSafeMode(): bool {
 		return $this->safemode;
 	}
 
-	/**
-	 * Set the value of safemode
-	 *
-	 * @param  bool  $safemode
-	 */ 
-	public function setSafeMode(bool $safemode) {
+	public function setSafeMode(bool $safemode): void {
 		$this->safemode = $safemode;
 	}
 
-	/**
-	 * Get the value of ssl
-	 *
-	 * @return  bool
-	 */ 
-	public function getSSL() {
+	public function getSSL(): bool {
 		return $this->ssl;
 	}
 
-	/**
-	 * Set the value of ssl
-	 *
-	 * @param  bool  $ssl
-	 *
-	 * @return  self
-	 */ 
-	public function setSSL(bool $ssl) {
+	public function setSSL(bool $ssl): void {
 		$this->ssl = $ssl;
 	}
 
-	/**
-	 * Get the value of suspended
-	 *
-	 * @return  bool
-	 */ 
-	public function getSuspended() {
+	public function getSuspended(): bool {
 		return $this->suspended;
 	}
 
-	/**
-	 * Set the value of suspended
-	 *
-	 * @param  bool  $suspended
-	 *
-	 * @return  self
-	 */ 
-	public function setSuspended(bool $suspended) {
+	public function setSuspended(bool $suspended): void {
 		$this->suspended = $suspended;
 	}
 
