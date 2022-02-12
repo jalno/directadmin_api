@@ -228,6 +228,9 @@ class Accounts {
 				$params["ftp_port"] = $location["port"];
 				$params["ftp_path"] = $location["directory"];
 				$params["ftp_secure"] = isset($location["secure"]) ? $location["secure"] : "ftp";
+			} else if ($location["where"] == "local") {
+				$params["where"] = $location["where"];
+				$params["local_path"] = $location["local_path"];
 			} else {
 				throw new Exception("unknown location for create backup");
 			}
@@ -278,7 +281,10 @@ class Accounts {
 		$checkUsersInTicket = function(string $message) use (&$users): bool {
 			$foundedUsers = 0;
 			foreach ($users as $user) {
-				if (stripos($message, "User {$user} has been backed up") !== false or stripos($message, "{$user}.tar.gz") !== false) {
+				if (stripos($message, "User {$user} has been backed up") !== false or
+					stripos($message, "{$user}.tar.gz") !== false or
+					stripos($message, "{$user}.tar.zst") !== false
+				) {
 					$foundedUsers++;
 				}
 			}
@@ -338,7 +344,7 @@ class Accounts {
 			foreach ($users as $user) {
 				foreach ($files as $file) {
 					$basename = substr($file, strrpos($file, "/") + 1);
-					if (stripos($basename, "{$user}.tar.gz") !== false) {
+					if (stripos($basename, "{$user}.tar.gz") !== false or stripos($basename, "{$user}.tar.zst") !== false) {
 						$result[$user] = $file;
 					}
 				}
@@ -358,7 +364,7 @@ class Accounts {
 					if (isset($result[$user])) {
 						continue;
 					}
-					if (preg_match("/^(?:user|reseller|admin)\.(?:\w+)\.(\w+)\.tar\.gz$/", $f->basename, $matches)) {
+					if (preg_match("/^(?:user|reseller|admin)\.(?:\w+)\.(\w+)\.tar\.(gz|zst)$/", $f->basename, $matches)) {
 						if ($matches[1] == $user) {
 							$result[$user] = $f;
 							$found = true;
