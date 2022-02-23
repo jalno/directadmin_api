@@ -480,7 +480,7 @@ class Accounts {
 					$foundedUsers++;
 				}
 			}
-			return $foundedUsers == count($foundedUsers);
+			return $foundedUsers == count($basenames);
 		};
 		$log->info("get system tickets for checking new ticket, timeout: {$timeout} sec");
 		while ($timeout === 0 or Date::time() - $startAt < $timeout) {
