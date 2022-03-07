@@ -13,6 +13,7 @@ class AccountDomain {
 	private bool $php = false;
 	private bool $safemode = false;
 	private bool $ssl = false;
+	private bool $forceSSL = false;
 	private bool $suspended = false;
 
 
@@ -41,6 +42,9 @@ class AccountDomain {
 			'ubandwidth' => 'unlimited',
 			'uquota' => 'unlimited',
 		);
+		if ($this->forceSSL) {
+			$params["force_ssl"] = "yes";
+		}
 		$socket->set_method("POST");
 		$socket->query("/CMD_API_DOMAIN", $params);
 		$result = $socket->fetch_parsed_body();
@@ -162,6 +166,14 @@ class AccountDomain {
 
 	public function setSSL(bool $ssl): void {
 		$this->ssl = $ssl;
+	}
+
+	public function getForceSSL(): bool {
+		return $this->forceSSL;
+	}
+
+	public function setForceSSL(bool $forceSSL): void {
+		$this->forceSSL = $forceSSL;
 	}
 
 	public function getSuspended(): bool {
