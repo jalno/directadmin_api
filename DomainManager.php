@@ -52,6 +52,7 @@ class DomainManager {
 				$obj->setPHP(isset($result['php']) and $result['php'] == 'ON');
 				$obj->setSafeMode(isset($result['safemode']) and $result['safemode'] == 'ON');
 				$obj->setSSL(isset($result['ssl']) and $result['ssl'] == 'ON');
+				$obj->setForceSSL(isset($result['force_ssl']) and strtolower($result['force_ssl']) == 'yes');
 				$domains[] = $obj;
 			}
 		}
