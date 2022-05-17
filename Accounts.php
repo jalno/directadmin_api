@@ -212,6 +212,7 @@ class Accounts {
 			$log->reply("sent in: ", Date\Gregorian::format("Y/m/d H-i-s", $lastTicket["last_message"]));
 		} else {
 			$log->reply("NotFound");
+			$lastTicket['last_message'] = Date::time();
 		}
 
 		$params = array(
@@ -290,19 +291,18 @@ class Accounts {
 			}
 			return $foundedUsers == count($users);
 		};
-		while ($timeout == 0 or date::time() - $startAt < $timeout) {
-			$log->info("get system tickets for checking new ticket");
 
+		while ($timeout == 0 or date::time() - $startAt < $timeout) {
+			$log->info("Get tickets to check backup is completed or not");
 			$tickets = $apiAccount->getTickets();
+			$log->reply(count($tickets), " tickets get. Check them for new tickets.");
+
 			foreach ($tickets as $ticket) {
-				if (!$lastTicket or $ticket["last_message"] > $lastTicket["last_message"]) {
+				if (!$lastTicket or $ticket["last_message"] >= $lastTicket["last_message"]) {
 					$lastTicket = $ticket;
 					$log->info("the new ticket found, sent in: ", Date\Gregorian::format("Y/m/d H-i-s", $ticket["last_message"]));
 					$subject = strtolower($ticket["subject"]);
-					if (
-						substr($subject, 0, strlen("your backups are now ready")) == "your backups are now ready" and
-						strtolower($ticket["new"]) == "yes"
-					) {
+					if (substr($subject, 0, strlen("your backups are now ready")) == "your backups are now ready") {
 						$content = $apiAccount->getTicket($ticket["message"]);
 						if ($content) {
 							if ($checkUsersInTicket($content["message"])) {
@@ -314,10 +314,7 @@ class Accounts {
 						} else {
 							$log->reply()->warn("Unable to get message content");
 						}
-					} else if (
-						substr($subject, 0, strlen("an error occurred during the backup")) == "an error occurred during the backup" and
-						strtolower($ticket["new"]) == "yes"
-					) {
+					} elseif (substr($subject, 0, strlen("an error occurred during the backup")) == "an error occurred during the backup") {
 						$log->reply("Oh it's seems an error occurred, Let's check it");
 						$content = $apiAccount->getTicket($ticket["message"]);
 						if ($content) {
@@ -406,6 +403,7 @@ class Accounts {
 			$log->reply("sent in: ", Date\Gregorian::format("Y/m/d H-i-s", $lastTicket["last_message"]));
 		} else {
 			$log->reply("not found");
+			$lastTicket['last_message'] = Date::time();
 		}
 		$startAt = Date::time();
 
@@ -484,18 +482,15 @@ class Accounts {
 		};
 		$log->info("get system tickets for checking new ticket, timeout: {$timeout} sec");
 		while ($timeout === 0 or Date::time() - $startAt < $timeout) {
-			$log->info("get tickets...");
+			$log->info("Get tickets to check restore is completed or not");
 			$tickets = $apiAccount->getTickets();
-			$log->reply("done, proccess them...");
+			$log->reply(count($tickets), " tickets get. Check it for new tickets.");
 			foreach ($tickets as $ticket) {
-				if (!$lastTicket or $ticket["last_message"] > $lastTicket["last_message"]) {
+				if (!$lastTicket or $ticket["last_message"] >= $lastTicket["last_message"]) {
 					$lastTicket = $ticket;
 					$log->info("the new ticket found, sent in: ", Date\Gregorian::format("Y/m/d H-i-s", $ticket["last_message"]));
 					$subject = trim(strtolower($ticket["subject"]));
-					if (
-						substr($subject, 0, strlen("your user files have been restored")) == "your user files have been restored" and
-						strtolower($ticket["new"]) == "yes"
-					) {
+					if (substr($subject, 0, strlen("your user files have been restored")) == "your user files have been restored") {
 						$content = $apiAccount->getTicket($ticket["message"]);
 						if ($content) {
 							if ($checkUsersInTicket($content["message"])) {
@@ -507,21 +502,18 @@ class Accounts {
 						} else {
 							$log->reply()->warn("unable to get message content");
 						}
-					} else if (
-						substr($subject, 0, strlen("an error occurred during the restore")) == "an error occurred during the restore" and
-						strtolower($ticket["new"]) == "yes"
-					) {
+					} else if (substr($subject, 0, strlen("an error occurred during the restore")) == "an error occurred during the restore") {
 						$log->reply("oh it's seems an error occurred, let's check it");
 						$content = $apiAccount->getTicket($ticket["message"]);
 						if ($content) {
 							if ($checkUsersInTicket($content["message"])) {
-								$log->reply()->fatal("sorry.., the restore backup process has faield");
+								$log->reply()->fatal("sorry.., the restore backup process has been faield.");
 								$e = new FailedException();
 								$e->setRequest($params);
 								$e->setResponse($content);
 								throw $e;
 							} else {
-								$log->reply("be happy, It's not our request");
+								$log->reply("Be Happy, It's not our request");
 							}
 						} else {
 							$log->reply()->warn("unable to get message content");
