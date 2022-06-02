@@ -298,7 +298,7 @@ class Accounts {
 			$log->reply(count($tickets), " tickets get. Check them for new tickets.");
 
 			foreach ($tickets as $ticket) {
-				if (!$lastTicket or $ticket["last_message"] >= $lastTicket["last_message"]) {
+				if (!$lastTicket or $ticket["last_message"] > $lastTicket["last_message"]) {
 					$lastTicket = $ticket;
 					$log->info("the new ticket found, sent in: ", Date\Gregorian::format("Y/m/d H-i-s", $ticket["last_message"]));
 					$subject = strtolower($ticket["subject"]);
@@ -486,7 +486,7 @@ class Accounts {
 			$tickets = $apiAccount->getTickets();
 			$log->reply(count($tickets), " tickets get. Check it for new tickets.");
 			foreach ($tickets as $ticket) {
-				if (!$lastTicket or $ticket["last_message"] >= $lastTicket["last_message"]) {
+				if (!$lastTicket or $ticket["last_message"] > $lastTicket["last_message"]) {
 					$lastTicket = $ticket;
 					$log->info("the new ticket found, sent in: ", Date\Gregorian::format("Y/m/d H-i-s", $ticket["last_message"]));
 					$subject = trim(strtolower($ticket["subject"]));
