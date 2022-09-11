@@ -39,10 +39,10 @@ class DomainManager {
 		$domains = [];
 		$lines = explode("\n", $rawBody);
 		foreach ($lines as $line) {
+			$line = urldecode($line);
 			if ($domain = strtok($line, "=")) {
 				$result = null;
 				parse_str(substr($line, strlen($domain) + 1), $result);
-				$domain = urldecode($domain);
 				$obj = new AccountDomain($this->account, $domain);
 				$obj->setActive(isset($result['active']) and $result['active'] == 'yes');
 				$obj->setDefault(isset($result['defaultdomain']) and $result['defaultdomain']== 'yes');
