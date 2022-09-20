@@ -42,9 +42,6 @@ class AccountDomain {
 			'ubandwidth' => 'unlimited',
 			'uquota' => 'unlimited',
 		);
-		if ($this->forceSSL) {
-			$params["force_ssl"] = "yes";
-		}
 		$socket->set_method("POST");
 		$socket->query("/CMD_API_DOMAIN", $params);
 		$result = $socket->fetch_parsed_body();
@@ -78,7 +75,9 @@ class AccountDomain {
 			'action' => 'private_html',
 			'domain' => $this->domain,
 			'val' => $mode,
+			'force_ssl' => $this->forceSSL ? 'yes' : 'no',
 		);
+
 		$socket->set_method("POST");
 		$socket->query("/CMD_API_DOMAIN", $params);
 		$result = $socket->fetch_parsed_body();
@@ -94,7 +93,42 @@ class AccountDomain {
 			throw $FailedException;
 		}
 	}
-	
+
+	public function modifyForceSSL(): void
+	{
+		$username = $this->api->getUsername();
+		$level = $this->api->getLevel();
+
+		$accountUsername = $this->account->getUsername();
+		$impersonate = $username != $accountUsername;
+
+		if ($impersonate) {
+			$this->api->setUsername($accountUsername, API::User, true);
+		}
+
+		$params = array(
+			'action' => 'private_html',
+			'domain' => $this->domain,
+			'force_ssl' => $this->forceSSL ? 'yes' : 'no',
+		);
+
+		$socket = $this->api->getSocket();
+		$socket->set_method("POST");
+		$socket->query("/CMD_API_DOMAIN", $params);
+
+		$result = $socket->fetch_parsed_body();
+
+		if ($impersonate) {
+			$this->api->setUsername($username, $level, false);
+		}
+
+		if (isset($result["error"]) and $result["error"]) {
+			$FailedException = new FailedException();
+			$FailedException->setRequest($params);
+			$FailedException->setResponse($result);
+			throw $FailedException;
+		}
+	}
 
 	public function getDomain(): string {
 		return $this->domain;
