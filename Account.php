@@ -1380,6 +1380,74 @@ class Account {
 		unset($result["messages"]["info"]);
 		return $result["messages"];
 	}
+
+	/**
+	 * @param array<string,string> $params
+	 */
+	public function issueSSL(string $domain, array $params = []): void
+	{
+		$username = $this->api->getUsername();
+		$level = $this->api->getLevel();
+		$impersonate = $username != $this->username;
+		if ($impersonate) {
+			$this->api->setUsername($this->username, API::User, true);
+		}
+
+		$socket = $this->api->getSocket();
+
+		try {
+			/** @var array<string,string> */
+			$params = array_merge([
+				'domain' => $domain,
+				'action' => 'save',
+				'background' => 'auto',
+				'type' => 'create',
+				'name' => $domain,
+				'submit' => 'Save',
+			], $params);
+
+			$socket->set_method("POST");
+			$socket->query("/CMD_API_SSL", $params);
+			$result = $socket->fetch_parsed_body();
+
+			if ((isset($result["error"]) and $result["error"])) {
+				$FailedException = new FailedException();
+				$FailedException->setRequest($params);
+				$FailedException->setResponse($result);
+				throw $FailedException;
+			}
+		} finally {
+			if ($impersonate) {
+				$this->api->setUsername($username, $level, false);
+			}
+		}
+	}
+
+	public function issueLetsencryptSSL(string $domain, array $domains = []): void
+	{
+		foreach (['www.'.$domain, $domain] as $item) {
+			if (!in_array($item, $domains)) {
+				array_unshift($domains, $item);
+			}
+		}
+
+		$domains = array_unique($domains);
+
+		$selects = [];
+		$i = 0;
+		foreach ($domains as $item) {
+			$selects['le_select'.($i++)] = $item;
+		}
+
+		$this->issueSSL($domain, array_merge([
+			'request' => 'letsencrypt',
+			'keysize' => 'secp384r1',
+			'encryption' => 'sha256',
+			'le_wc_select0' => $domain,
+			'le_wc_select1' => '*.'.$domain,
+		], $selects));
+	}
+
 	protected function getCurrentBackups(): array {
 		$this->reload();
 		/** @var array<string,string> */
