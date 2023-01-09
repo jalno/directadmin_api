@@ -107,13 +107,13 @@ class BackupManager {
 		}
 		if ($appendPath) {
 			if (in_array($appendPath, ['dayofweek', 'dayofmonth', 'weekofmonth', 'month', 'date'])) {
-				$params['append_path'] = $appendPath;
+				$params['append_to_path'] = $appendPath;
 			} else {
-				$params['append_path'] = "custom";
+				$params['append_to_path'] = "custom";
 				$params['custom_append'] = $appendPath;
 			}
 		} else {
-			$params['append_path'] = "nothing";
+			$params['append_to_path'] = "nothing";
 		}
 
 		if (is_string($who)) {
