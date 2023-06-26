@@ -1025,6 +1025,40 @@ class Account {
 		}
 		return $result;
 	}
+
+	public function setCustomHTTPWithCustoms(?string $config = null, ?array $customs = null)
+	{
+		/** @var array<string,string> */
+		$params = array(
+			"domain" => $this->getDomain(),
+			"config" => $config ?: '',
+		);
+
+		if ($customs) {
+			$params = array_merge($params, $customs);
+		}
+
+		$this->socket->set_method("POST");
+		$this->socket->query("/CMD_API_CUSTOM_HTTPD", $params);
+
+		$result = $this->socket->fetch_parsed_body();
+
+		if (!$result) {
+			$exception = new FailedException();
+			$exception->setRequest($params);
+			throw $exception;
+		}
+
+		if (isset($result["error"]) and $result["error"] == 1) {
+			$exception = new FailedException();
+			$exception->setRequest($params);
+			$exception->setResponse($result);
+			throw $exception;
+		}
+
+		return $result;
+	}
+
 	public function getCustomHTTP(string $domain) {
 		/** @var array<string,string> */
 		$params = array(
