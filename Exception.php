@@ -1,4 +1,7 @@
 <?php
+
 namespace packages\directadmin_api;
 
-class Exception extends \Exception {}
+class Exception extends \Exception
+{
+}

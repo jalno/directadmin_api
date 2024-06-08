@@ -1,5 +1,7 @@
 <?php
+
 namespace packages\directadmin_api;
 
-
-class EmailNotExistException extends FailedException {}
+class EmailNotExistException extends FailedException
+{
+}

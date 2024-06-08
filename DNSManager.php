@@ -1,93 +1,100 @@
 <?php
+
 namespace packages\directadmin_api;
-use packages\base\{Log, HTTP, HTTP\ClientException, HTTP\ServerException};
 
-class DNSManager {
-	protected $api;
-	protected $account;
-	public function __construct($api) {
-		if ($api instanceof Account) {
-			$this->account = $api;
-			$api = $this->account->getAPI();
-		}
-		$this->api = $api;
-	}
-	public function add(string $domain, string $type, string $value, ?string $name = null): void {
-		if (!$name) {
-			$name = $domain . '.';
-		}
-		
-		if ($this->account) {
-			$username = $this->api->getUsername();
-			$accountUsername = $this->account->getUsername();
-			$impersonate = $username != $accountUsername;
-			if ($impersonate) {
-				$level = $this->api->getLevel();
-				$this->api->setUsername($accountUsername, API::User, true);
-			}
-		} else {
-			$impersonate = false;
-		}
+class DNSManager
+{
+    protected $api;
+    protected $account;
 
-		$params = array(
-			"domain" => $domain,
-			"action" => "add",
-			"name" => $name,
-			"type" => $type,
-			"value" => $value,
-		);
-		$socket = $this->api->getSocket();
-		$socket->set_method("GET");
-		$socket->query("/CMD_API_DNS_CONTROL", $params);
-		$result = $socket->fetch_parsed_body();
+    public function __construct($api)
+    {
+        if ($api instanceof Account) {
+            $this->account = $api;
+            $api = $this->account->getAPI();
+        }
+        $this->api = $api;
+    }
 
-		if ($impersonate) {
-			$this->api->setUsername($username, $level, false);
-		}
+    public function add(string $domain, string $type, string $value, ?string $name = null): void
+    {
+        if (!$name) {
+            $name = $domain.'.';
+        }
 
-		if (isset($result["error"]) and $result["error"]) {
-			$FailedException = new FailedException();
-			$FailedException->setRequest($params);
-			$FailedException->setResponse($result);
-			throw $FailedException;
-		}
-	}
-	public function delete(string $domain, string $type, string $value, ?string $name = null): void {
-		if (!$name) {
-			$name = $domain . '.';
-		}
-		
-		if ($this->account) {
-			$username = $this->api->getUsername();
-			$accountUsername = $this->account->getUsername();
-			$impersonate = $username != $accountUsername;
-			if ($impersonate) {
-				$level = $this->api->getLevel();
-				$this->api->setUsername($accountUsername, API::User, true);
-			}
-		} else {
-			$impersonate = false;
-		}
+        if ($this->account) {
+            $username = $this->api->getUsername();
+            $accountUsername = $this->account->getUsername();
+            $impersonate = $username != $accountUsername;
+            if ($impersonate) {
+                $level = $this->api->getLevel();
+                $this->api->setUsername($accountUsername, API::User, true);
+            }
+        } else {
+            $impersonate = false;
+        }
 
-		$params = array(
-			"domain" => $domain,
-			"action" => "select",
-			strtolower($type) . "recs0"  => "name=" . $name . "&value=" . $value,
-		);
-		$socket = $this->api->getSocket();
-		$socket->set_method("GET");
-		$socket->query("/CMD_API_DNS_CONTROL", $params);
-		$result = $socket->fetch_parsed_body();
+        $params = [
+            'domain' => $domain,
+            'action' => 'add',
+            'name' => $name,
+            'type' => $type,
+            'value' => $value,
+        ];
+        $socket = $this->api->getSocket();
+        $socket->set_method('GET');
+        $socket->query('/CMD_API_DNS_CONTROL', $params);
+        $result = $socket->fetch_parsed_body();
 
-		if ($impersonate) {
-			$this->api->setUsername($username, $level, false);
-		}
+        if ($impersonate) {
+            $this->api->setUsername($username, $level, false);
+        }
 
-		if (isset($result["error"]) and $result["error"]) {
-			$FailedException = new FailedException();
-			$FailedException->setRequest($params);
-			$FailedException->setResponse($result);
-			throw $FailedException;
-		}
-	}
+        if (isset($result['error']) and $result['error']) {
+            $FailedException = new FailedException();
+            $FailedException->setRequest($params);
+            $FailedException->setResponse($result);
+            throw $FailedException;
+        }
+    }
+
+    public function delete(string $domain, string $type, string $value, ?string $name = null): void
+    {
+        if (!$name) {
+            $name = $domain.'.';
+        }
+
+        if ($this->account) {
+            $username = $this->api->getUsername();
+            $accountUsername = $this->account->getUsername();
+            $impersonate = $username != $accountUsername;
+            if ($impersonate) {
+                $level = $this->api->getLevel();
+                $this->api->setUsername($accountUsername, API::User, true);
+            }
+        } else {
+            $impersonate = false;
+        }
+
+        $params = [
+            'domain' => $domain,
+            'action' => 'select',
+            strtolower($type).'recs0' => 'name='.$name.'&value='.$value,
+        ];
+        $socket = $this->api->getSocket();
+        $socket->set_method('GET');
+        $socket->query('/CMD_API_DNS_CONTROL', $params);
+        $result = $socket->fetch_parsed_body();
+
+        if ($impersonate) {
+            $this->api->setUsername($username, $level, false);
+        }
+
+        if (isset($result['error']) and $result['error']) {
+            $FailedException = new FailedException();
+            $FailedException->setRequest($params);
+            $FailedException->setResponse($result);
+            throw $FailedException;
+        }
+    }
 }
