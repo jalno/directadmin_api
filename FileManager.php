@@ -1,6 +1,6 @@
 <?php
 namespace packages\directadmin_api;
-use packages\base\{IO, IO\file, log, http, http\clientException, http\serverException};
+use packages\base\{IO, IO\File, Log, HTTP, HTTP\ClientException, HTTP\ServerException};
 
 class FileManager {
 	protected $api;
@@ -9,8 +9,8 @@ class FileManager {
 		$this->account = $account;
 		$this->api = $this->account->getAPI();
 	}
-	public function download(string $filePath, file $source) {
-		$log = log::getInstance();
+	public function download(string $filePath, File $source) {
+		$log = Log::getInstance();
 		$log->info("insure the source directory is exists");
 		$sourceDirectory = $source->getDirectory();
 		if (!$sourceDirectory->exists()) {
@@ -18,7 +18,7 @@ class FileManager {
 		}
 		$username = $this->api->getUsername();
 		$log->info("send http client request to {$username}@", $this->api->getHost(), " for download ", $filePath);
-		$client = new http\client();
+		$client = new HTTP\Client();
 		try {
 			$username = $this->api->getUsername();
 			$accountUsername = $this->account->getUsername();
@@ -42,24 +42,24 @@ class FileManager {
 			);
 			$log->reply($params);
 			$response = $client->get("{$this->api->getHost()}/CMD_API_FILE_MANAGER", $params);
-		} catch (clientException $e) {
+		} catch (ClientException $e) {
 			$FailedException = new FailedException();
 			$FailedException->setRequest($e->getRequest());
 			$FailedException->setResponse($e->getResponse());
 			throw $FailedException;
-		} catch (serverException $e) {
+		} catch (ServerException $e) {
 			$FailedException = new FailedException();
 			$FailedException->setRequest($e->getRequest());
 			$FailedException->setResponse($e->getResponse());
 			throw $FailedException;
 		}
 	}
-	public function upload(string $filePath, file $source) {
-		$log = log::getInstance();
+	public function upload(string $filePath, File $source) {
+		$log = Log::getInstance();
 		if (!$source->exists()) {
 			throw new Exception("file not exists");
 		}
-		$client = new http\client();
+		$client = new HTTP\Client();
 		try {
 			$username = $this->api->getUsername();
 			$accountUsername = $this->account->getUsername();
@@ -101,12 +101,12 @@ class FileManager {
 				$FailedException->setResponse($body);
 				throw $FailedException;
 			}
-		} catch (clientException $e) {
+		} catch (ClientException $e) {
 			$FailedException = new FailedException();
 			$FailedException->setRequest($e->getRequest());
 			$FailedException->setResponse($e->getResponse());
 			throw $FailedException;
-		} catch (serverException $e) {
+		} catch (ServerException $e) {
 			$FailedException = new FailedException();
 			$FailedException->setRequest($e->getRequest());
 			$FailedException->setResponse($e->getResponse());
@@ -132,7 +132,7 @@ class FileManager {
 		$watcher($fields);
 		foreach($params as $name => $value) {
 			$body .= $key . "\r\n";
-			if ($value instanceof file) {
+			if ($value instanceof File) {
 				$body .= "Content-Disposition: form-data; name=\"{$name}\"; filename=\"{$value->basename}\"\r\n";
 				$body .= "Content-Type: ".IO\mime_type($value->getPath())."\r\n\r\n";
 				$body .= $value->read();

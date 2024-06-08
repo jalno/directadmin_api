@@ -2,7 +2,7 @@
 namespace packages\directadmin_api;
 
 use \InvalidArgumentException;
-use packages\base\utility\Password;
+use packages\base\Utility\Password;
 
 class EmailManager {
 	

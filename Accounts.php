@@ -277,7 +277,7 @@ class Accounts {
 			throw $exception;
 		}
 
-		$startAt = date::time();
+		$startAt = Date::time();
 
 		$checkUsersInTicket = function(string $message) use (&$users): bool {
 			$foundedUsers = 0;
@@ -292,7 +292,7 @@ class Accounts {
 			return $foundedUsers == count($users);
 		};
 
-		while ($timeout == 0 or date::time() - $startAt < $timeout) {
+		while ($timeout == 0 or Date::time() - $startAt < $timeout) {
 			$log->info("Get tickets to check backup is completed or not");
 			$tickets = $apiAccount->getTickets();
 			$log->reply(count($tickets), " tickets get. Check them for new tickets.");
@@ -542,7 +542,7 @@ class Accounts {
 		$other->setUsername($username, $level);
 		$other->setPassword($password);
 
-		$localBackup = new file\tmp();
+		$localBackup = new file\TMP();
 		if ($level == API::Admin || $level == API::Reseller) {
 			$accounts = $other->getAccounts();
 			$account = $accounts->byDomain($domain);

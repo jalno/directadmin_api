@@ -1,7 +1,7 @@
 <?php
 namespace packages\directadmin_api;
 
-use packages\base\{Date, log, utility, json, View\Error};
+use packages\base\{Date, log, Utility, Json, View\Error};
 
 class Account {
 	const unlimited = -1;
@@ -277,7 +277,7 @@ class Account {
 			"dnscontrol" => $this->dnscontrol ? "ON" : "OFF"
 		);
 		$params["username"] = $this->username ? $this->username : self::createUsername($this->domain);
-		$params["passwd"] = $this->password ? $this->password : utility\password::generate();
+		$params["passwd"] = $this->password ? $this->password : Utility\Password::generate();
 		$params["passwd2"] = $params["passwd"];
 		$params["notify"] = $this->notify ? "yes" : "no";
 		if ($this->reseller) {
@@ -430,12 +430,12 @@ class Account {
 			$exception->setResponse($result);
 			throw $exception;
 		}
-		$startAt = date::time();
+		$startAt = Date::time();
 		$found = false;
 		$checkUserInTicket = function(string $message): bool {
 			return stripos($message, "User {$this->username} has been restored") !== false || stripos($message, $this->username) !== false;
 		};
-		while(($timeout == 0 or date::time() - $startAt < $timeout) and !$found) {
+		while(($timeout == 0 or Date::time() - $startAt < $timeout) and !$found) {
 			$tickets = $this->getTickets();
 			foreach ($tickets as $ticket) {
 				if (!$lastTicket or $ticket["last_message"] > $lastTicket["last_message"]) {
@@ -525,7 +525,7 @@ class Account {
 		}
 		$found = false;
 		$log->info("listening for add new ticket in ", $timeout, " Second");
-		while (($timeout == 0 or date::time() - $startAt < $timeout) and !$found) {
+		while (($timeout == 0 or Date::time() - $startAt < $timeout) and !$found) {
 			$log->info("get system tickets for checking new ticket");
 			$tickets = $this->getTickets();
 			foreach ($tickets as $ticket) {
@@ -1374,7 +1374,7 @@ class Account {
 			"action" => "view",
 			"type" => "message",
 		));
-		$result = json\decode($this->socket->fetch_body());
+		$result = Json\Decode($this->socket->fetch_body());
 		if (isset($result["error"]) and $result["error"]) {
 			$FailedException = new FailedException();
 			$FailedException->setResponse($result);
@@ -1402,7 +1402,7 @@ class Account {
 		$this->socket->set_method("GET");
 		$this->socket->query("/CMD_TICKET", $params);
 		try {
-			$result = json\decode($this->socket->fetch_body());
+			$result = Json\Decode($this->socket->fetch_body());
 		} catch (json\JsonException $e) {
 			return [];
 		}

@@ -1,6 +1,6 @@
 <?php
 namespace packages\directadmin_api;
-use packages\base\{IO, IO\file, log, http, http\clientException, http\serverException};
+use packages\base\{IO, IO\File, Log, HTTP, HTTP\ClientException, HTTP\ServerException};
 
 class DatabaseManager {
 	protected $api;

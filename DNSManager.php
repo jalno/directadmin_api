@@ -1,6 +1,6 @@
 <?php
 namespace packages\directadmin_api;
-use packages\base\{log, http, http\clientException, http\serverException};
+use packages\base\{Log, HTTP, HTTP\ClientException, HTTP\ServerException};
 
 class DNSManager {
 	protected $api;

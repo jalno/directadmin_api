@@ -1,7 +1,7 @@
 <?php
 namespace packages\directadmin_api;
 
-use packages\base\json;
+use packages\base\Json;
 
 /**
  * Socket communication class.
@@ -425,7 +425,7 @@ class HTTPSocket {
 	function fetch_parsed_body()
 	{
 		if ($this->isJson) {
-			return json\decode($this->result_body);
+			return Json\Decode($this->result_body);
 		}
 		parse_str($this->result_body,$x);
 		return $x;
