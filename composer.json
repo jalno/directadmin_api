@@ -1,0 +1,15 @@
+{
+    "name": "jalno/directadmin-api",
+    "type": "library",
+    "license": "MIT",
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "require": {
+        "jalno/base": "@dev"
+    },
+    "autoload": {
+        "psr-4": {
+            "packages\\directadmin_api\\": ["libraries/"]
+        }
+    }
+}
