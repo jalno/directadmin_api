@@ -2,5 +2,3 @@ parameters:
   level: 0
   scanDirectories:
     - ../
-  ignoreErrors:
-    - "/(Class|Interface|Trait) .+ referenced with incorrect case/"

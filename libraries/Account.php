@@ -4,7 +4,7 @@ namespace packages\directadmin_api;
 
 use packages\base\Date;
 use packages\base\Json;
-use packages\base\log;
+use packages\base\Log;
 use packages\base\Utility;
 use packages\base\View\Error;
 
@@ -495,7 +495,7 @@ class Account
 
     public function backup(int $timeout = 600)
     {
-        $log = log::getInstance();
+        $log = Log::getInstance();
         $log->info('init backup params');
         /** @var array<string,string> */
         $params = [
@@ -649,7 +649,7 @@ class Account
 
     public function modify(array $modifiedData)
     {
-        $log = log::getInstance();
+        $log = Log::getInstance();
         $log->info('modifing user', $this->username);
         if (empty($modifiedData)) {
             $log->reply()->fatal('modify data is empty');
